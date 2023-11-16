@@ -65,7 +65,7 @@ def fetch_all_student():
 
 @app.route('/get_record_file', methods=["POST"])
 def get_record_file():
-    student = request.get_json()["grade_class_seatNumber_studentName"]
+    student = request.get_json()["grade_studentClass_seatNumber_studentName"]
     question_number = request.get_json()["questionNumber"]
     path_of_audio = ""
     for root, dirs, files in os.walk(f"./static/audio/{student}"):

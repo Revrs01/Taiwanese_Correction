@@ -1,8 +1,16 @@
 let EXAM_QUESTIONS = [];
+let urlParameters = new URLSearchParams(window.location.search);
+let $studentName = urlParameters.get("studentName");
+let $schoolName = urlParameters.get("schoolName");
+let $grade = urlParameters.get("grade");
+let $studentClass = urlParameters.get("studentClass");
+let $seatNumber = urlParameters.get("seatNumber");
+let base64String;
+
 
 $(document).ready(() => {
-    let urlParameters = new URLSearchParams(window.location.search);
-    $('#cardTitle').append(urlParameters.get("studentName"));
+
+    $('#cardTitle').append($studentName);
     let grade = urlParameters.get("grade");
     fetchStudentQuestion(grade);
 });
@@ -26,7 +34,7 @@ function appendCorrectionTable() {
         let tableBody = `<tbody>
                         <tr>
                             <th scope="row" style="font-size: 26px;">${EXAM_QUESTIONS[index]}</th>
-                            <th scope="row" style="font-size: 16px;"><audio controls style="width: 400px;"></audio></th>
+                            <th scope="row" style="font-size: 16px;"><audio controls></audio></th>
                             <th>
                                 <div class="d-flex align-items-center">
                                     <button class="btn" style="background-color: aquamarine" buttonIndex="${index}">糾正錯誤</button>
@@ -37,4 +45,19 @@ function appendCorrectionTable() {
                         </tbody>`
         $correctionTable.append(tableBody);
     }
+}
+
+function getRecordAudio(questionNumber){
+    $.ajax({
+        type: "POST",
+        url: '/get_record_file',
+        contentType: "application/json",
+        data: JSON.stringify({
+            grade_studentClass_seatNumber_studentName: `${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`,
+            questionNumber: questionNumber
+        })
+    })
+        .then((response) => {
+            base64String = JSON.parse(response)["base64String"];
+        })
 }
