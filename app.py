@@ -113,6 +113,48 @@ def fetch_student_questions():
     return json.dumps(questions_for_student, ensure_ascii=False)
 
 
+@app.route('/get_correction_data', methods=["POST"])
+def get_correction_data():
+    schoolName_grade_studentClass_seatNumber_studentName \
+        = request.get_json()["schoolName_grade_studentClass_seatNumber_studentName"]
+
+    path_of_js_data = ""
+    for root, dirs, files in os.walk(f"./學生校正資料/"):
+        for file in files:
+            if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
+                path_of_js_data = os.path.join(root, file)
+                break
+
+    if path_of_js_data != "":
+        with open(path_of_js_data, 'r') as js_file:
+            correction_data_string = js_file.read()
+    else:
+        default_correction_pattern = {
+            "status": "",
+            "正確性評分": "",
+            "入聲": "",
+            "脫落": "",
+            "增加": "",
+            "清濁錯誤": "",
+            "讀成華語四聲": "",
+            "錯讀": "",
+            "變調錯誤": "",
+            "讀異音": "",
+            "讀異音詳細": "",
+            "連結字偏旁": "",
+            "從華語字義轉譯成台語": "",
+            "直接唸成華語讀法": "",
+            "字義理解錯誤": "",
+            "狀態": "",
+            "備註欄": "",
+        }
+        correction_data_string = json.dumps(default_correction_pattern, ensure_ascii=False)
+        with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_js:
+            write_js.write(correction_data_string)
+
+    return correction_data_string
+
+
 @app.route('/')
 def home_page():
     return render_template('index.html')
