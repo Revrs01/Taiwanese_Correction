@@ -14,6 +14,15 @@ STUDENT_DATA = []
 EXAM_QUESTIONS = {}
 
 
+def duplicate_questions(questions) -> list:
+    duplicated = []
+    for index, q in enumerate(questions):
+        duplicated.append({f"{index + 1}_p": q})
+        duplicated.append({f"{index + 1}_c": f"{q} 造句"})
+
+    return duplicated
+
+
 def fetch_questions():
     global EXAM_QUESTIONS
     with open('./examQuestions2.js', 'r') as js_file:
@@ -67,15 +76,20 @@ def fetch_all_student():
 def get_record_file():
     student = request.get_json()["grade_studentClass_seatNumber_studentName"]
     question_number = request.get_json()["questionNumber"]
+
     path_of_audio = ""
     for root, dirs, files in os.walk(f"./static/audio/{student}"):
         for file in files:
             if file.endswith(f"2_{question_number}.wav"):
                 path_of_audio = os.path.join(root, file)
                 break
-    base64_encoder = base64.b64encode(open(path_of_audio, "rb").read())
 
-    base64_decoder = base64_encoder.decode("utf-8")
+    try:
+        base64_encoder = base64.b64encode(open(path_of_audio, "rb").read())
+        base64_decoder = base64_encoder.decode("utf-8")
+    except FileNotFoundError as error:
+        print(error)
+        base64_decoder = ""
     return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
 
 
@@ -86,12 +100,15 @@ def fetch_student_questions():
     grade = request.get_json()["grade"]
 
     questions_for_student = []
-    questions_for_student.extend(EXAM_QUESTIONS["examQuestionRoman"])
+    for index, q in enumerate(EXAM_QUESTIONS["examQuestionRoman"]):
+        questions_for_student.append({f"{index + 1}_r": q})
 
     if int(grade) <= 2:
-        questions_for_student.extend(EXAM_QUESTIONS["examQuestionLowGrade"])
+        all_exam_question = duplicate_questions(EXAM_QUESTIONS["examQuestionLowGrade"])
+        questions_for_student.extend(all_exam_question)
     else:
-        questions_for_student.extend(EXAM_QUESTIONS["examQuestionHighGrade"])
+        all_exam_question = duplicate_questions(EXAM_QUESTIONS["examQuestionHighGrade"])
+        questions_for_student.extend(all_exam_question)
 
     return json.dumps(questions_for_student, ensure_ascii=False)
 
