@@ -6,10 +6,18 @@
     <script src="https://code.jquery.com/jquery-3.7.1.js"
             integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
     <link href="../static/css/style.css" rel="stylesheet">
+    <link href="../static/css/modal.css" rel="stylesheet">
     <script src="../static/js/correctionPageScript.js"></script>
 
 </head>
 <body>
+<div class="top-banner" id="topBanner">
+    <img src="../static/images/National_Cheng_Kung_University_logo.svg.png" style="width: 30px; height: 30px;">
+    成功大學 台灣文學系 台語測驗校正網站
+</div>
+<section class="modal hidden" style="line-height: 1.8;" id="modalSection"></section>
+
+<div class="overlay hidden" id="modalOverlay"></div>
 <div class="main-content">
     <div class="container-fluid mt-7">
         <div class="col">
@@ -29,31 +37,7 @@
 
                     </table>
                 </div>
-                <div class="card-footer py-4">
-                    <nav aria-label="...">
-                        <ul class="pagination justify-content-end mb-0">
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#" tabindex="-1">
-                                    <i class="fas fa-angle-left"></i>
-                                    <span class="sr-only">Previous</span>
-                                </a>
-                            </li>
-                            <li class="page-item active">
-                                <a class="page-link" href="#">1</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2 <span class="sr-only">(current)</span></a>
-                            </li>
-                            <li class="page-item"><a class="page-link" href="#">3</a></li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">
-                                    <i class="fas fa-angle-right"></i>
-                                    <span class="sr-only">Next</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                </div>
+
             </div>
         </div>
     </div>

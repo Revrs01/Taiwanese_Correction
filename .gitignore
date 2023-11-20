@@ -1,3 +1,5 @@
 .idea/
 __pycache__/
 static/audio/
+學生校正資料/
+.DS_Store

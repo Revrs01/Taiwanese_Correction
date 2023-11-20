@@ -4,16 +4,59 @@
     <meta charset="UTF-8">
     <title>台文系校正網站</title>
     <link href="../static/css/style.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <link href="../static/css/offcanvas.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.js"
+            integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
     <script src="../static/js/indexPageScript.js"></script>
 </head>
 <body>
-<div class="main-content">
+<div class="top-banner" id="topBanner">
+    <img src="../static/images/National_Cheng_Kung_University_logo.svg.png" style="width: 30px; height: 30px;">
+    成功大學 台灣文學系 台語測驗校正網站
+</div>
+
+<div id="sideNavBar" class="sidenav" style="margin-top: 55px;">
+    <a href="#" class="closebtn" onclick="closeOffcanvas()">&times;</a>
+    <label class="offcavas-label">
+        篩選學校：
+        <select id="filterSchoolName" class="offcavas-label">
+            <option value=""></option>
+        </select>
+
+    </label>
+    <br>
+    <label class="offcavas-label">
+        篩選年級：
+        <select id="filterGrade" class="offcavas-label">
+            <option value=""></option>
+        </select>
+    </label>
+    <br>
+    <label class="offcavas-label" class="offcavas-label">
+        篩選班級：
+        <select id="filterStudentClass">
+            <option value=""></option>
+        </select>
+    </label>
+    <div class="container-fluid d-flex justify-content-end" style="margin-right: 30px;">
+        <button id="resetButton" class="btn"
+                style="background-color: #fa3a0e; color: white;" onclick="resetFilter()">重設
+        </button>
+
+        <button id="startFilter" class="btn"
+                style="background-color: forestgreen; color: white;"
+                onclick="filterStudent()">篩選
+        </button>
+    </div>
+
+</div>
+<div class="main-content" id="offcanvas">
     <div class="container-fluid mt-7">
         <div class="col">
             <div class="card shadow">
                 <div class="card-header border-0">
                     <h3 class="mb-0" style="font-size: 32px;">學生總表</h3>
+                    <span style="font-size:18px;cursor:pointer" onclick="openOffcanvas()">&#9776; 篩選學生</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table align-items-center table-flush" id="mainTable">
@@ -34,27 +77,27 @@
                 </div>
                 <div class="card-footer py-4">
                     <nav aria-label="...">
-                        <ul class="pagination justify-content-end mb-0">
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#" tabindex="-1">
-                                    <i class="fas fa-angle-left"></i>
-                                    <span class="sr-only">Previous</span>
-                                </a>
-                            </li>
-                            <li class="page-item active">
-                                <a class="page-link" href="#">1</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2 <span class="sr-only">(current)</span></a>
-                            </li>
-                            <li class="page-item"><a class="page-link" href="#">3</a></li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">
-                                    <i class="fas fa-angle-right"></i>
-                                    <span class="sr-only">Next</span>
-                                </a>
-                            </li>
-                        </ul>
+                        <!--                        <ul class="pagination justify-content-end mb-0">-->
+                        <!--                            <li class="page-item disabled">-->
+                        <!--                                <a class="page-link" href="#" tabindex="-1">-->
+                        <!--                                    <i class="fas fa-angle-left"></i>-->
+                        <!--                                    <span class="sr-only">Previous</span>-->
+                        <!--                                </a>-->
+                        <!--                            </li>-->
+                        <!--                            <li class="page-item active">-->
+                        <!--                                <a class="page-link" href="#">1</a>-->
+                        <!--                            </li>-->
+                        <!--                            <li class="page-item">-->
+                        <!--                                <a class="page-link" href="#">2 <span class="sr-only">(current)</span></a>-->
+                        <!--                            </li>-->
+                        <!--                            <li class="page-item"><a class="page-link" href="#">3</a></li>-->
+                        <!--                            <li class="page-item">-->
+                        <!--                                <a class="page-link" href="#">-->
+                        <!--                                    <i class="fas fa-angle-right"></i>-->
+                        <!--                                    <span class="sr-only">Next</span>-->
+                        <!--                                </a>-->
+                        <!--                            </li>-->
+                        <!--                        </ul>-->
                     </nav>
                 </div>
             </div>
