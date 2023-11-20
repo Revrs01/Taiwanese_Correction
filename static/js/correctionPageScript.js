@@ -8,6 +8,7 @@ let $studentClass = urlParameters.get("studentClass");
 let $seatNumber = urlParameters.get("seatNumber");
 let CORRECTION_DATA = {};
 let $CORRECTNESS = "";
+let CURRENT_CORRECTING_NUMBER = "";
 
 
 $(document).ready(() => {
@@ -85,7 +86,7 @@ async function getRecordAudio(questionNumber) {
 function showCorrectStudentErrorPage(object) {
     const modalHeader = `<div class="flex">
         <h1>校正列表</h1>
-        <button class="btn-close">不保存離開</button>
+        <button class="btn-close" onclick="closeModalWithoutSave()">不保存離開</button>
     </div>
     <div>
         <label style="font-size: 24px;">正確性評分：
@@ -101,7 +102,7 @@ function showCorrectStudentErrorPage(object) {
     </div>
     <hr style="height:3px;border-width:0;color:rgb(128,128,128);background-color:rgb(128,128,128)">`
 
-    let questionNumber = object.attributes.buttonIndex.value;
+    CURRENT_CORRECTING_NUMBER = object.attributes.buttonIndex.value;
     let $modalSection = $("#modalSection");
     let $modalOverlay = $("#modalOverlay");
 
@@ -112,7 +113,8 @@ function showCorrectStudentErrorPage(object) {
         url: '/get_correction_data',
         contentType: "application/json",
         data: JSON.stringify({
-            schoolName_grade_studentClass_seatNumber_studentName: `${$schoolName}_${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`
+            schoolName_grade_studentClass_seatNumber_studentName: `${$schoolName}_${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`,
+            questionNumber: EXAM_QUESTIONS_NUMBER[CURRENT_CORRECTING_NUMBER]
         })
     })
         .then((response) => {
@@ -217,29 +219,67 @@ function showCorrectStudentErrorPage(object) {
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["備註欄"]}">
         </label>
     </div>
-    <button class="btn-modal" style="background-color: forestgreen; color: white" onclick="closeModal()">保存並離開</button>
+    <button class="btn-modal" style="background-color: forestgreen; color: white" onclick="closeModalSaveData()">保存並離開</button>
 <br>`
 
-            if (CORRECTION_DATA["正確性評分"] !== "正確") {
-                $modalSection.append(modalBody);
-            }
-
+            $modalSection.append(modalBody);
             $CORRECTNESS.val(CORRECTION_DATA["正確性評分"]);
         })
         .done(() => {
             $modalOverlay.removeClass("hidden");
             $modalSection.removeClass("hidden");
         })
-    // then append html to it
-    // when finished, click submit to save the data
-    // clear the modal content
 }
 
-function closeModal() {
-    let $modalSection = $('#modalSection');
-    let $modalOverlay = $('#modalOverlay');
-    $modalSection.addClass("hidden");
-    $modalOverlay.addClass("hidden");
-    $modalSection.empty();
-    $modalOverlay.empty();
+function closeModalWithoutSave() {
+    let modalSection = document.getElementById("modalSection");
+    let modalOverlay = document.getElementById("modalOverlay");
+    modalSection.classList.add("hidden");
+    modalOverlay.classList.add("hidden");
+    modalSection.innerHTML = "";
+}
+
+function closeModalSaveData() {
+    let modalSection = document.getElementById("modalSection");
+    let modalOverlay = document.getElementById("modalOverlay");
+    let correctnessEvaluate = document.getElementById("correctness")
+
+    let correctionInput = [];
+    modalSection.querySelectorAll("input").forEach((inputElement) => {
+        correctionInput.push(inputElement.value);
+    })
+    modalSection.classList.add("hidden");
+    modalOverlay.classList.add("hidden");
+    modalSection.innerHTML = "";
+
+    $.ajax({
+        type: "POST",
+        url: '/save_correction_data',
+        contentType: "application/json; charset=utf-8",
+        data: JSON.stringify({
+            schoolName_grade_studentClass_seatNumber_studentName: `${$schoolName}_${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`,
+            questionNumber: EXAM_QUESTIONS_NUMBER[CURRENT_CORRECTING_NUMBER],
+            correctionData: {
+                正確性評分: correctnessEvaluate.value,
+                入聲: correctionInput[0],
+                脫落: correctionInput[1],
+                增加: correctionInput[2],
+                清濁錯誤: correctionInput[3],
+                讀成華語四聲: correctionInput[4],
+                錯讀: correctionInput[5],
+                變調錯誤: correctionInput[6],
+                讀異音: correctionInput[7],
+                讀異音詳細: correctionInput[8],
+                連結字偏旁: correctionInput[9],
+                從華語字義轉譯成台語: correctionInput[10],
+                直接唸成華語讀法: correctionInput[11],
+                字義理解錯誤: correctionInput[12],
+                狀態: correctionInput[13],
+                備註欄: correctionInput[14]
+            }
+        })
+    })
+        .then((response) => {
+            console.log(response);
+        });
 }

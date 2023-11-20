@@ -12,6 +12,7 @@ SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 EXAM_QUESTIONS = {}
+PATH_OF_CURRENT_CORRECTION_DATA = ""
 
 
 def duplicate_questions(questions) -> list:
@@ -115,44 +116,86 @@ def fetch_student_questions():
 
 @app.route('/get_correction_data', methods=["POST"])
 def get_correction_data():
+    """
+    only for reading data purpose
+    :return:
+    """
+    global PATH_OF_CURRENT_CORRECTION_DATA
     schoolName_grade_studentClass_seatNumber_studentName \
         = request.get_json()["schoolName_grade_studentClass_seatNumber_studentName"]
 
-    path_of_js_data = ""
+    question_number = request.get_json()["questionNumber"]
+    print(question_number, schoolName_grade_studentClass_seatNumber_studentName)
+
+    PATH_OF_CURRENT_CORRECTION_DATA = ""
     for root, dirs, files in os.walk(f"./學生校正資料/"):
         for file in files:
             if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
-                path_of_js_data = os.path.join(root, file)
+                PATH_OF_CURRENT_CORRECTION_DATA = os.path.join(root, file)
                 break
 
-    if path_of_js_data != "":
-        with open(path_of_js_data, 'r') as js_file:
-            correction_data_string = js_file.read()
-    else:
-        default_correction_pattern = {
-            "status": "",
-            "正確性評分": "",
-            "入聲": "",
-            "脫落": "",
-            "增加": "",
-            "清濁錯誤": "",
-            "讀成華語四聲": "",
-            "錯讀": "",
-            "變調錯誤": "",
-            "讀異音": "",
-            "讀異音詳細": "",
-            "連結字偏旁": "",
-            "從華語字義轉譯成台語": "",
-            "直接唸成華語讀法": "",
-            "字義理解錯誤": "",
-            "狀態": "",
-            "備註欄": "",
-        }
-        correction_data_string = json.dumps(default_correction_pattern, ensure_ascii=False)
-        with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_js:
-            write_js.write(correction_data_string)
+    default_correction_pattern = {
+        "正確性評分": "",
+        "入聲": "",
+        "脫落": "",
+        "增加": "",
+        "清濁錯誤": "",
+        "讀成華語四聲": "",
+        "錯讀": "",
+        "變調錯誤": "",
+        "讀異音": "",
+        "讀異音詳細": "",
+        "連結字偏旁": "",
+        "從華語字義轉譯成台語": "",
+        "直接唸成華語讀法": "",
+        "字義理解錯誤": "",
+        "狀態": "",
+        "備註欄": "",
+    }
 
-    return correction_data_string
+    # if file doesn't exist, then return NOT FOUND
+    if PATH_OF_CURRENT_CORRECTION_DATA == "":
+        return json.dumps(default_correction_pattern, ensure_ascii=False)
+    else:
+        # founded, open the file then check if exist that questionNumber's data
+        with open(PATH_OF_CURRENT_CORRECTION_DATA, 'r') as js_file:
+            # JS structure -> {"1_r":{"正確性評分":"錯誤", ... }, "2_r":{"正確性評分":"正確", ...} ...}
+            student_correction_data = json.loads(js_file.read())
+
+        if question_number in student_correction_data:
+            return json.dumps(student_correction_data[question_number], ensure_ascii=False)
+        else:
+            return json.dumps(default_correction_pattern, ensure_ascii=False)
+
+
+@app.route('/save_correction_data', methods=["POST"])
+def save_correction_data():
+    """
+    save correction data for corresponding question number
+    :return:
+    """
+    return_message = ""
+    req = request.get_json()
+    question_number = req["questionNumber"]
+    correction_data = req["correctionData"]
+    schoolName_grade_studentClass_seatNumber_studentName = req["schoolName_grade_studentClass_seatNumber_studentName"]
+
+    student_correction_data = {}
+    # check the file existence first, then write the file
+    try:
+        with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'r') as js_file:
+            student_correction_data = json.loads(js_file.read())
+        return_message = "FILE FOUND"
+
+    except FileNotFoundError as e:
+        print(e)
+        return_message = "NEW FILE CREATED"
+
+    student_correction_data[question_number] = correction_data
+    with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_file:
+        write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
+
+    return return_message
 
 
 @app.route('/')

@@ -64,7 +64,7 @@ function goToCorrectionPage(object) {
         "&studentClass=" + selectedStudent["studentClass"] +
         "&seatNumber=" + selectedStudent["seatNumber"] +
         "&studentName=" + selectedStudent["studentName"];
-    window.open(url);
-
+    // window.open(url);
+    window.location = url;
 }
 
