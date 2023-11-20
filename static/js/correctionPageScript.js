@@ -171,7 +171,7 @@ function showCorrectStudentErrorPage(object) {
         </div>
 
     </div>
-    <hr>
+    <hr style="margin: 8px;">
     <div style="width: 100%; justify-content: space-between">
         <label style="font-size: 20px;">
             讀異音：
@@ -181,59 +181,72 @@ function showCorrectStudentErrorPage(object) {
             <input placeholder="詳細說明" type="text" style="width: 70%;" value="${CORRECTION_DATA["讀異音詳細"]}">
         </label>
     </div>
+    &emsp;
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             連結字偏旁：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["連結字偏旁"]}">
         </label>
     </div>
-    <hr>
+    <hr style="margin: 8px;">
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             從華語字義轉譯成台語：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["從華語字義轉譯成台語"]}">
         </label>
     </div>
+    &emsp;
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             直接唸成華語讀法：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["直接唸成華語讀法"]}">
         </label>
     </div>
+    &emsp;
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             字義理解錯誤：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["字義理解錯誤"]}">
         </label>
     </div>
+    &emsp;
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             狀態：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["狀態"]}">
         </label>
     </div>
-    <hr>
+    <hr style="margin: 8px;">
     <div style="width: 100%;">
         <label style="font-size: 20px;">
             備註欄：
             <input placeholder="詳細說明" type="text" style="width: 80%;" value="${CORRECTION_DATA["備註欄"]}">
         </label>
     </div>
-    <button class="btn-modal" style="background-color: forestgreen; color: white" onclick="closeModalSaveData()">保存並離開</button>
+    <div style="width: 100%;">
+        <button class="btn-modal" style="background-color: forestgreen; color: white; width: 100%;" onclick="closeModalSaveData()">保存並離開</button>
+</div>
 <br>`
 
             $modalSection.append(modalBody);
             $CORRECTNESS.val(CORRECTION_DATA["正確性評分"]);
         })
         .done(() => {
+            $("#topBanner").addClass("hidden");
             $modalOverlay.removeClass("hidden");
             $modalSection.removeClass("hidden");
+            document.getElementById("modalSection").scrollTo({
+                top: 0,
+                behavior: "smooth"
+            })
+
         })
 }
 
 function closeModalWithoutSave() {
     let modalSection = document.getElementById("modalSection");
     let modalOverlay = document.getElementById("modalOverlay");
+    $("#topBanner").removeClass("hidden");
     modalSection.classList.add("hidden");
     modalOverlay.classList.add("hidden");
     modalSection.innerHTML = "";
@@ -243,7 +256,7 @@ function closeModalSaveData() {
     let modalSection = document.getElementById("modalSection");
     let modalOverlay = document.getElementById("modalOverlay");
     let correctnessEvaluate = document.getElementById("correctness")
-
+    $("#topBanner").removeClass("hidden");
     let correctionInput = [];
     modalSection.querySelectorAll("input").forEach((inputElement) => {
         correctionInput.push(inputElement.value);

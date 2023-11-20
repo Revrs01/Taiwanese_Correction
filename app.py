@@ -12,7 +12,6 @@ SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-PATH_OF_CURRENT_CORRECTION_DATA = ""
 
 
 def duplicate_questions(questions) -> list:
@@ -35,11 +34,16 @@ def fetch_questions():
 def filter_by_selections():
     global STUDENT_DATA
     selections = request.get_json()["selections"]
-
+    print(selections)
     filtered_student_data = STUDENT_DATA.copy()
     for selection in selections:
+
         filter_iterator = []
         category, value = next(iter(selection)), selection[next(iter(selection))]
+
+        if value == "":
+            continue
+
         for student in filtered_student_data:
             if student[category] == value:
                 filter_iterator.append(student)
@@ -47,6 +51,25 @@ def filter_by_selections():
         filtered_student_data = filter_iterator.copy()
 
     return json.dumps(filtered_student_data, ensure_ascii=False, indent=10)
+
+
+@app.route('/fetch_filter_selection', methods=["POST"])
+def fetch_filter_selection():
+    global STUDENT_DATA
+
+    distinct_school_name = set()
+    distinct_student_class = set()
+    distinct_grade = set()
+    for student in STUDENT_DATA:
+        distinct_school_name.add(student["schoolName"])
+        distinct_student_class.add(student["studentClass"])
+        distinct_grade.add(student["grade"])
+
+    return json.dumps({
+        "distinctSchoolName": sorted(list(distinct_school_name)),
+        "distinctStudentClass": sorted(list(distinct_student_class), key=int),
+        "distinctGrade": sorted(list(distinct_grade))
+    }, ensure_ascii=False)
 
 
 @app.route('/fetch_all_student', methods=["POST"])
@@ -120,18 +143,17 @@ def get_correction_data():
     only for reading data purpose
     :return:
     """
-    global PATH_OF_CURRENT_CORRECTION_DATA
     schoolName_grade_studentClass_seatNumber_studentName \
         = request.get_json()["schoolName_grade_studentClass_seatNumber_studentName"]
 
     question_number = request.get_json()["questionNumber"]
     print(question_number, schoolName_grade_studentClass_seatNumber_studentName)
 
-    PATH_OF_CURRENT_CORRECTION_DATA = ""
+    path_of_current_correction_data = ""
     for root, dirs, files in os.walk(f"./學生校正資料/"):
         for file in files:
             if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
-                PATH_OF_CURRENT_CORRECTION_DATA = os.path.join(root, file)
+                path_of_current_correction_data = os.path.join(root, file)
                 break
 
     default_correction_pattern = {
@@ -154,11 +176,11 @@ def get_correction_data():
     }
 
     # if file doesn't exist, then return NOT FOUND
-    if PATH_OF_CURRENT_CORRECTION_DATA == "":
+    if path_of_current_correction_data == "":
         return json.dumps(default_correction_pattern, ensure_ascii=False)
     else:
         # founded, open the file then check if exist that questionNumber's data
-        with open(PATH_OF_CURRENT_CORRECTION_DATA, 'r') as js_file:
+        with open(path_of_current_correction_data, 'r') as js_file:
             # JS structure -> {"1_r":{"正確性評分":"錯誤", ... }, "2_r":{"正確性評分":"正確", ...} ...}
             student_correction_data = json.loads(js_file.read())
 
@@ -174,7 +196,7 @@ def save_correction_data():
     save correction data for corresponding question number
     :return:
     """
-    return_message = ""
+
     req = request.get_json()
     question_number = req["questionNumber"]
     correction_data = req["correctionData"]
