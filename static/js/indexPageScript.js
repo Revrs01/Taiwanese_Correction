@@ -1,5 +1,5 @@
 let STUDENT_DATA = [];
-
+let CORRECTION_PROGRESS = [];
 $(document).ready(() => {
     fetchAllStudent();
 });
@@ -11,19 +11,37 @@ function fetchAllStudent() {
         url: "/fetch_all_student",
         contentType: "application/json",
     })
-        .then((response) => {
+        .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
+            await getCorrectionProgress();
             appendMainTable();
             appendFilterSelection();
         });
 }
 
+async function getCorrectionProgress() {
+    await $.ajax({
+        type: "POST",
+        url: "/get_correction_progress",
+        contentType: "application/json",
+    })
+        .then((response) => {
+            CORRECTION_PROGRESS = JSON.parse(response);
+            console.log("Correction Progress fetched.");
+        })
+}
+
 function appendMainTable() {
     let $mainTable = $("#mainTable")
-
-
     for (let index = 0; index < STUDENT_DATA.length; index++) {
-        // console.log(STUDENT_DATA[student]);
+        let state = ``
+        if (CORRECTION_PROGRESS[index] > 0){
+            state = `<span class="badge badge-dot mr-4"><i class="bg-info"></i> 校正中</span>`
+        } else if (CORRECTION_PROGRESS[index] === 100) {
+            state = `<span class="badge badge-dot mr-4"><i class="bg-success"></i> 校正完成</span>`
+        } else {
+            state = `<span class="badge badge-dot mr-4"><i class="bg-danger"></i> 尚未校正</span>`
+        }
         let tableBody = `<tbody>
                         <tr>
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["studentName"]}</th>
@@ -32,22 +50,22 @@ function appendMainTable() {
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["seatNumber"]}</th>
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["gender"]}</th>
                             <th>
-                                <span class="badge badge-dot mr-4"><i class="bg-warning"></i> pending</span>
+                                ${state}
                             </th>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <span class="mr-2">60%</span>
+                                    <span class="mr-2">${CORRECTION_PROGRESS[index]}%</span>
                                     <div>
                                         <div class="progress">
-                                            <div class="progress-bar bg-warning" role="progressbar" aria-valuenow="60"
-                                                 aria-valuemin="0" aria-valuemax="100" style="width: 60%;"></div>
+                                            <div class="progress-bar bg-warning" role="progressbar" aria-valuenow="${CORRECTION_PROGRESS[index]}"
+                                                 aria-valuemin="0" aria-valuemax="100" style="width: ${CORRECTION_PROGRESS[index]}%;"></div>
                                         </div>
                                     </div>
                                 </div>
                             </td>
                             <th>
                                 <div class="d-flex align-items-center">
-                                    <button class="btn" style="background-color: aquamarine" buttonIndex="${index}" onclick="goToCorrectionPage(this)">進入校正</button>
+                                    <button class="btn" style="color: white; background-color: orange;" buttonIndex="${index}" onclick="goToCorrectionPage(this)">進入校正</button>
                                 </div>
                             </th>
                         </tr>
@@ -92,6 +110,14 @@ function appendFilterSelection() {
     })
         .then((response) => {
             let selections = JSON.parse(response);
+            $schoolNameSelection.empty();
+            $schoolNameSelection.append(`<option value=""></option>`);
+
+            $studentClassSelection.empty();
+            $studentClassSelection.append(`<option value=""></option>`)
+
+            $gradeSelection.empty();
+            $gradeSelection.append(`<option value=""></option>`);
 
             for (let schoolName of selections["distinctSchoolName"]) {
                 let option = `<option value="${schoolName}">${schoolName}</option>`;
@@ -116,7 +142,7 @@ function filterStudent() {
     let $studentClass = $("#filterStudentClass").val();
     let $grade = $("#filterGrade").val();
     let $mainTable = $("#mainTable");
-    console.log(STUDENT_DATA);
+
     $.ajax({
         type: "POST",
         url: "/filter_by_selections",
@@ -125,7 +151,7 @@ function filterStudent() {
             selections: [{schoolName: $schoolName}, {studentClass: $studentClass}, {grade: $grade}]
         })
     })
-        .then((response) => {
+        .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
             $mainTable.empty();
             $mainTable.append(`<thead class="thead-light">
@@ -140,12 +166,13 @@ function filterStudent() {
                             <th scope="col" style="font-size: 18px;">校正按鈕</th>
                         </tr>
                         </thead>`)
+            await getCorrectionProgress();
             appendMainTable();
             closeOffcanvas();
         })
 }
 
-function resetFilter(){
+function resetFilter() {
     $("#filterSchoolName").val("");
     $("#filterStudentClass").val("");
     $("#filterGrade").val("");
@@ -163,6 +190,7 @@ function resetFilter(){
                             <th scope="col" style="font-size: 18px;">校正按鈕</th>
                         </tr>
                         </thead>`)
+    // await getCorrectionProgress();
     fetchAllStudent();
     closeOffcanvas();
 }
