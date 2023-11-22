@@ -36,16 +36,40 @@ function fetchStudentQuestion(grade) {
         });
 }
 
+async function getCorrectionStatus() {
+    let correction_data = "";
+    await $.ajax({
+        type: "POST",
+        url: "/get_correction_status",
+        contentType: "application/json",
+        data: JSON.stringify({
+            schoolName_grade_studentClass_seatNumber_studentName: `${$schoolName}_${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`,
+        })
+    })
+        .then((response) => {
+            correction_data = JSON.parse(response);
+        });
+
+    return correction_data
+}
+
+
 async function appendCorrectionTable() {
     let $correctionTable = $("#correctionTable");
+    let correctionData = await getCorrectionStatus();
 
     for (let index = 0; index < EXAM_QUESTIONS_LIST.length; index++) {
         let currentQuestionNumber = EXAM_QUESTIONS_NUMBER[index];
         let audioString = await getRecordAudio(currentQuestionNumber);
-
+        let button = ""
         let audioController = ``;
         if (audioString !== "") {
             audioController = `<audio controls><source src='data:audio/wav;base64,${audioString}' type="audio/wav"></audio>`;
+        }
+        if (correctionData[currentQuestionNumber] !== undefined && correctionData[currentQuestionNumber]["正確性評分"] !== "") {
+            button = `<button class="btn" style="background-color: #04AA6D; color: white;" buttonIndex="${index}" onclick="showCorrectStudentErrorPage(this)">已經校正</button>`
+        } else {
+            button = `<button class="btn" style="background-color: #f24213; color: white;" buttonIndex="${index}" onclick="showCorrectStudentErrorPage(this)">校正錯誤</button>`
         }
 
         let tableBody = `<tbody>
@@ -54,7 +78,7 @@ async function appendCorrectionTable() {
                             <th scope="row" style="font-size: 16px;">${audioController}</th>
                             <th>
                                 <div class="d-flex align-items-center">
-                                    <button class="btn-modal" buttonIndex="${index}" onclick="showCorrectStudentErrorPage(this)">糾正錯誤</button>
+                                    ${button}
                                 </div>
                             </th>
                         </tr>
@@ -62,6 +86,10 @@ async function appendCorrectionTable() {
                         </tbody>`
         $correctionTable.append(tableBody);
     }
+
+    $("#loader").addClass("hidden");
+    $("#modalOverlay").addClass("hidden");
+
 }
 
 async function getRecordAudio(questionNumber) {
@@ -294,5 +322,22 @@ function closeModalSaveData() {
     })
         .then((response) => {
             console.log(response);
+            let $currentButton = $(`button[buttonIndex=${CURRENT_CORRECTING_NUMBER}]`);
+            if (correctnessEvaluate.value !== "") {
+                $currentButton.css({
+                    "background-color": "#04AA6D",
+                    "color": "white"
+                });
+
+                $currentButton.text("已經校正");
+            } else {
+                $currentButton.css({
+                    "background-color": "#f24213",
+                    "color": "white"
+                });
+
+                $currentButton.text("校正錯誤");
+            }
+
         });
 }

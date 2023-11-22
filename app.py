@@ -1,5 +1,6 @@
 import base64
 import json
+import math
 
 from flask import Flask, render_template, request
 from SqlCursor import Cursor
@@ -11,6 +12,7 @@ app = Flask(__name__)
 SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
+FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
 
 
@@ -32,10 +34,10 @@ def fetch_questions():
 
 @app.route('/filter_by_selections', methods=["POST"])
 def filter_by_selections():
-    global STUDENT_DATA
+    global STUDENT_DATA, FILTERED_STUDENT_DATA
     selections = request.get_json()["selections"]
     print(selections)
-    filtered_student_data = STUDENT_DATA.copy()
+    FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
     for selection in selections:
 
         filter_iterator = []
@@ -44,13 +46,13 @@ def filter_by_selections():
         if value == "":
             continue
 
-        for student in filtered_student_data:
+        for student in FILTERED_STUDENT_DATA:
             if student[category] == value:
                 filter_iterator.append(student)
 
-        filtered_student_data = filter_iterator.copy()
+        FILTERED_STUDENT_DATA = filter_iterator.copy()
 
-    return json.dumps(filtered_student_data, ensure_ascii=False, indent=10)
+    return json.dumps(FILTERED_STUDENT_DATA, ensure_ascii=False, indent=10)
 
 
 @app.route('/fetch_filter_selection', methods=["POST"])
@@ -74,7 +76,7 @@ def fetch_filter_selection():
 
 @app.route('/fetch_all_student', methods=["POST"])
 def fetch_all_student():
-    global STUDENT_DATA
+    global STUDENT_DATA, FILTERED_STUDENT_DATA
     STUDENT_DATA = []
     SQL_CURSOR.execute("SELECT RecordID from All_student_2023")
     SQL_CONNECTION.commit()
@@ -92,7 +94,7 @@ def fetch_all_student():
             "birthdayMonth": split_by_underline[7],
             "birthdayDay": split_by_underline[8]
         })
-
+    FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
     return json.dumps(STUDENT_DATA, ensure_ascii=False, indent=10)
 
 
@@ -218,6 +220,55 @@ def save_correction_data():
         write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
 
     return return_message
+
+
+@app.route('/get_correction_status', methods=["POST"])
+def get_correction_status():
+    schoolName_grade_studentClass_seatNumber_studentName = request.get_json()[
+        "schoolName_grade_studentClass_seatNumber_studentName"]
+    path_of_current_correction_data = ""
+    for root, dirs, files in os.walk(f"./學生校正資料/"):
+        for file in files:
+            if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
+                path_of_current_correction_data = os.path.join(root, file)
+                break
+
+    if path_of_current_correction_data == "":
+        return "{}"
+    else:
+        with open(path_of_current_correction_data, 'r') as js_file:
+            correction_data = js_file.read()
+        return correction_data
+
+
+@app.route('/get_correction_progress', methods=["POST"])
+def get_correction_progress():
+    correction_progresses = []
+
+    global STUDENT_DATA, FILTERED_STUDENT_DATA
+    for student in FILTERED_STUDENT_DATA:
+        path_of_current_correction_data = ""
+        for root, dirs, files in os.walk(f"./學生校正資料/"):
+            for file in files:
+                if file.endswith(
+                        f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}.js"):
+                    path_of_current_correction_data = os.path.join(root, file)
+                    break
+
+        if int(student["grade"]) <= 2:
+            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(EXAM_QUESTIONS["examQuestionLowGrade"])
+        else:
+            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(EXAM_QUESTIONS["examQuestionHighGrade"])
+
+        if path_of_current_correction_data != "":
+            with open(path_of_current_correction_data, 'r') as js_file:
+                correction_data = json.loads(js_file.read())
+
+            correction_progresses.append(math.floor((len(correction_data) / examination_length) * 100))
+        else:
+            correction_progresses.append(0)
+
+    return json.dumps(correction_progresses, ensure_ascii=False)
 
 
 @app.route('/')
