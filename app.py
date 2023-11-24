@@ -78,7 +78,7 @@ def fetch_filter_selection():
 def fetch_all_student():
     global STUDENT_DATA, FILTERED_STUDENT_DATA
     STUDENT_DATA = []
-    SQL_CURSOR.execute("SELECT RecordID from All_student_2023")
+    SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new")
     SQL_CONNECTION.commit()
     result = SQL_CURSOR.fetchall()
     for student in result:
@@ -100,11 +100,13 @@ def fetch_all_student():
 
 @app.route('/get_record_file', methods=["POST"])
 def get_record_file():
-    student = request.get_json()["grade_studentClass_seatNumber_studentName"]
-    question_number = request.get_json()["questionNumber"]
+    req = request.get_json()
+    student = req["grade_studentClass_seatNumber_studentName"]
+    question_number = req["questionNumber"]
+    school_name = req["schoolName"]
 
     path_of_audio = ""
-    for root, dirs, files in os.walk(f"./static/audio/{student}"):
+    for root, dirs, files in os.walk(f"./static/audio/{school_name}/{student}"):
         for file in files:
             if file.endswith(f"2_{question_number}.wav"):
                 path_of_audio = os.path.join(root, file)

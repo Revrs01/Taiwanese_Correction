@@ -100,6 +100,7 @@ async function getRecordAudio(questionNumber) {
         contentType: "application/json",
         data: JSON.stringify({
             grade_studentClass_seatNumber_studentName: `${$grade}_${$studentClass}_${$seatNumber}_${$studentName}`,
+            schoolName: $schoolName,
             questionNumber: questionNumber
         })
     })
