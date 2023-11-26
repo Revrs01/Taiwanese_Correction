@@ -14,7 +14,7 @@ SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = "./學生校正資料/"
 
 def duplicate_questions(questions) -> list:
     duplicated = []
@@ -152,7 +152,7 @@ def get_correction_data():
     print(question_number, schoolName_grade_studentClass_seatNumber_studentName)
 
     path_of_current_correction_data = ""
-    for root, dirs, files in os.walk(f"./學生校正資料/"):
+    for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
         for file in files:
             if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
                 path_of_current_correction_data = os.path.join(root, file)
@@ -207,7 +207,7 @@ def save_correction_data():
     student_correction_data = {}
     # check the file existence first, then write the file
     try:
-        with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'r') as js_file:
+        with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js', 'r') as js_file:
             student_correction_data = json.loads(js_file.read())
         return_message = "FILE FOUND"
 
@@ -216,7 +216,7 @@ def save_correction_data():
         return_message = "NEW FILE CREATED"
 
     student_correction_data[question_number] = correction_data
-    with open(f'./學生校正資料/{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_file:
+    with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_file:
         write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
 
     return return_message
@@ -227,7 +227,7 @@ def get_correction_status():
     schoolName_grade_studentClass_seatNumber_studentName = request.get_json()[
         "schoolName_grade_studentClass_seatNumber_studentName"]
     path_of_current_correction_data = ""
-    for root, dirs, files in os.walk(f"./學生校正資料/"):
+    for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
         for file in files:
             if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
                 path_of_current_correction_data = os.path.join(root, file)
@@ -248,7 +248,7 @@ def get_correction_progress():
     global STUDENT_DATA, FILTERED_STUDENT_DATA
     for student in FILTERED_STUDENT_DATA:
         path_of_current_correction_data = ""
-        for root, dirs, files in os.walk(f"./學生校正資料/"):
+        for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
             for file in files:
                 if file.endswith(
                         f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}.js"):
