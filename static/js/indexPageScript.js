@@ -78,7 +78,7 @@ function appendMainTable() {
 function goToCorrectionPage(object) {
     let selectedStudent = STUDENT_DATA[parseInt(object.attributes.buttonIndex.value)];
     console.log(selectedStudent);
-    let url = "http://localhost:31109/correction_page?" + "schoolName=" + selectedStudent["schoolName"] +
+    let url = "http://140.116.153.134:31107/correction_page?" + "schoolName=" + selectedStudent["schoolName"] +
         "&grade=" + selectedStudent["grade"] +
         "&studentClass=" + selectedStudent["studentClass"] +
         "&seatNumber=" + selectedStudent["seatNumber"] +

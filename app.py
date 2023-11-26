@@ -1,6 +1,7 @@
 import base64
 import json
 import math
+import waitress
 
 from flask import Flask, render_template, request
 from SqlCursor import Cursor
@@ -8,13 +9,24 @@ import os
 
 app = Flask(__name__)
 
+import os
+
+# 獲取腳本所在目錄的絕對路徑
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 構建到靜態資源的絕對路徑
+audio_dir = os.path.join(script_dir, '..','static', 'audio', 'Tai_audio_test')
+
+# 接下來，您可以使用這個路徑來訪問或操作檔案
+
+
 # initial sql cursor
 SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-CORRECTION_DIR_ABSOLUTE_FILE_PATH = "./學生校正資料/"
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir,"學生校正資料")
 
 def duplicate_questions(questions) -> list:
     duplicated = []
@@ -27,7 +39,7 @@ def duplicate_questions(questions) -> list:
 
 def fetch_questions():
     global EXAM_QUESTIONS
-    with open('./examQuestions2.js', 'r') as js_file:
+    with open(os.path.join(script_dir,'examQuestions2.js'), 'r',encoding="utf-8") as js_file:
         js_string = js_file.read()
     EXAM_QUESTIONS = json.loads(js_string)
 
@@ -78,7 +90,7 @@ def fetch_filter_selection():
 def fetch_all_student():
     global STUDENT_DATA, FILTERED_STUDENT_DATA
     STUDENT_DATA = []
-    SQL_CURSOR.execute("SELECT RecordID from All_student_2023")
+    SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new")
     SQL_CONNECTION.commit()
     result = SQL_CURSOR.fetchall()
     for student in result:
@@ -106,7 +118,10 @@ def get_record_file():
     question_number = req["questionNumber"]
 
     path_of_audio = ""
-    for root, dirs, files in os.walk(f"./static/audio/Tai_audio_test/{school_name}/{student}"):
+    # for root, dirs, files in os.walk(f"C:/Program Files/Taiwanese_Correction/static/audio/Tai_audio_test/{school_name}/{student}"):
+
+    full_path = os.path.join(audio_dir, school_name, student)
+    for root, dirs, files in os.walk(full_path):
         for file in files:
             if file.endswith(f"2_{question_number}.wav"):
                 path_of_audio = os.path.join(root, file)
@@ -285,4 +300,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    app.run(host='localhost', port=31109, debug=True)
+    # app.run(host='localhost', port=31109, debug=True)
+    waitress.serve(app, host = "192.168.50.16",port = 31107)
