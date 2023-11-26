@@ -100,11 +100,13 @@ def fetch_all_student():
 
 @app.route('/get_record_file', methods=["POST"])
 def get_record_file():
-    student = request.get_json()["grade_studentClass_seatNumber_studentName"]
-    question_number = request.get_json()["questionNumber"]
+    req = request.get_json()
+    student = req["grade_studentClass_seatNumber_studentName"]
+    school_name = req["schoolName"]
+    question_number = req["questionNumber"]
 
     path_of_audio = ""
-    for root, dirs, files in os.walk(f"./static/audio/{student}"):
+    for root, dirs, files in os.walk(f"./static/audio/Tai_audio_test/{school_name}/{student}"):
         for file in files:
             if file.endswith(f"2_{question_number}.wav"):
                 path_of_audio = os.path.join(root, file)
