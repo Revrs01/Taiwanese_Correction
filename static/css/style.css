@@ -1511,10 +1511,6 @@ p {
     font-family: "cwTeXKai";
 }
 
-.top-banner:hover {
-    cursor: pointer;
-}
-
 .loader {
     margin: auto;
     border: 20px solid #EAF0F6;
