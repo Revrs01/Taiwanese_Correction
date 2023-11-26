@@ -1,0 +1,1 @@
+python3 "C:\Program Files\Taiwanese_Correction\Taiwanese_Correction_v2\app.py"
