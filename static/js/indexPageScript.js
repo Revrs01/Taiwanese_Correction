@@ -1,5 +1,6 @@
 let STUDENT_DATA = [];
 let CORRECTION_PROGRESS = [];
+let PAGE_NUMBER = 0;
 $(document).ready(() => {
     fetchAllStudent();
 });
@@ -13,6 +14,7 @@ function fetchAllStudent() {
     })
         .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
+            $('#currentPage').text(PAGE_NUMBER + 1);
             await getCorrectionProgress();
             appendMainTable();
             appendFilterSelection();
@@ -33,7 +35,7 @@ async function getCorrectionProgress() {
 
 function appendMainTable() {
     let $mainTable = $("#mainTable")
-    for (let index = 0; index < STUDENT_DATA.length; index++) {
+    for (let index = PAGE_NUMBER * 40; index < (PAGE_NUMBER + 1) * 40; index++) {
         let state = ``
         if (CORRECTION_PROGRESS[index] > 0){
             state = `<span class="badge badge-dot mr-4"><i class="bg-info"></i> 校正中</span>`
@@ -167,6 +169,8 @@ function filterStudent() {
                         </tr>
                         </thead>`)
             await getCorrectionProgress();
+            PAGE_NUMBER = 0;
+            $("#currentPage").text(PAGE_NUMBER + 1);
             appendMainTable();
             closeOffcanvas();
         })
@@ -193,4 +197,32 @@ function resetFilter() {
     // await getCorrectionProgress();
     fetchAllStudent();
     closeOffcanvas();
+}
+
+function switchPage(object) {
+    if (object.innerText === '>' && (PAGE_NUMBER + 1) * 40 <= STUDENT_DATA.length) {
+        PAGE_NUMBER++;
+    } else if (object.innerText === '<' && PAGE_NUMBER !== 0) {
+        PAGE_NUMBER--;
+    } else {
+        return;
+    }
+
+    let $mainTable = $("#mainTable");
+    let $currentPage = $("#currentPage");
+    $mainTable.empty();
+    $mainTable.append(`<thead class="thead-light">
+                        <tr>
+                            <th scope="col" style="font-size: 18px;">學生姓名</th>
+                            <th scope="col" style="font-size: 18px;">年級</th>
+                            <th scope="col" style="font-size: 18px;">班級</th>
+                            <th scope="col" style="font-size: 18px;">座號</th>
+                            <th scope="col" style="font-size: 18px;">性別</th>
+                            <th scope="col" style="font-size: 18px;">狀態</th>
+                            <th scope="col" style="font-size: 18px;">完成度</th>
+                            <th scope="col" style="font-size: 18px;">校正按鈕</th>
+                        </tr>
+                        </thead>`)
+    $currentPage.innerText = PAGE_NUMBER;
+    fetchAllStudent();
 }

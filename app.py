@@ -15,7 +15,7 @@ import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # 構建到靜態資源的絕對路徑
-audio_dir = os.path.join(script_dir, '..','static', 'audio', 'Tai_audio_test')
+audio_dir = os.path.join(script_dir, '..', 'static', 'audio', 'Tai_audio_test')
 
 # 接下來，您可以使用這個路徑來訪問或操作檔案
 
@@ -26,7 +26,8 @@ SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir,"學生校正資料")
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
+
 
 def duplicate_questions(questions) -> list:
     duplicated = []
@@ -39,7 +40,7 @@ def duplicate_questions(questions) -> list:
 
 def fetch_questions():
     global EXAM_QUESTIONS
-    with open(os.path.join(script_dir,'examQuestions2.js'), 'r',encoding="utf-8") as js_file:
+    with open(os.path.join(script_dir, 'examQuestions2.js'), 'r', encoding="utf-8") as js_file:
         js_string = js_file.read()
     EXAM_QUESTIONS = json.loads(js_string)
 
@@ -224,7 +225,8 @@ def save_correction_data():
     student_correction_data = {}
     # check the file existence first, then write the file
     try:
-        with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js', 'r') as js_file:
+        with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
+                  'r') as js_file:
             student_correction_data = json.loads(js_file.read())
         return_message = "FILE FOUND"
 
@@ -233,7 +235,8 @@ def save_correction_data():
         return_message = "NEW FILE CREATED"
 
     student_correction_data[question_number] = correction_data
-    with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js', 'w') as write_file:
+    with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
+              'w') as write_file:
         write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
 
     return return_message
@@ -273,9 +276,11 @@ def get_correction_progress():
                     break
 
         if int(student["grade"]) <= 2:
-            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(EXAM_QUESTIONS["examQuestionLowGrade"])
+            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(
+                EXAM_QUESTIONS["examQuestionLowGrade"])
         else:
-            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(EXAM_QUESTIONS["examQuestionHighGrade"])
+            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(
+                EXAM_QUESTIONS["examQuestionHighGrade"])
 
         if path_of_current_correction_data != "":
             with open(path_of_current_correction_data, 'r') as js_file:
@@ -290,6 +295,7 @@ def get_correction_progress():
 
 @app.route('/')
 def home_page():
+    SQL_CONNECTION.ping(reconnect=True)
     return render_template('index.html')
 
 
@@ -301,4 +307,4 @@ def correction_page():
 if __name__ == '__main__':
     fetch_questions()
     # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host = "192.168.50.16",port = 31107)
+    waitress.serve(app, host="192.168.50.16", port=31107)

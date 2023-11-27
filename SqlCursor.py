@@ -7,6 +7,5 @@ class Cursor:
                                           user='root',
                                           password='88159',
                                           database='taiwanese_correction')
-
     def get_connection(self):
         return self.connection
