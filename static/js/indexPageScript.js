@@ -1,6 +1,7 @@
 let STUDENT_DATA = [];
 let CORRECTION_PROGRESS = [];
 let PAGE_NUMBER = 0;
+let CORRECTION_URL = "http://140.116.153.134:31109/";
 $(document).ready(() => {
     fetchAllStudent();
 });
@@ -80,7 +81,7 @@ function appendMainTable() {
 function goToCorrectionPage(object) {
     let selectedStudent = STUDENT_DATA[parseInt(object.attributes.buttonIndex.value)];
     console.log(selectedStudent);
-    let url = "http://140.116.153.134:31107/correction_page?" + "schoolName=" + selectedStudent["schoolName"] +
+    let url = "correction_page?" + "schoolName=" + selectedStudent["schoolName"] +
         "&grade=" + selectedStudent["grade"] +
         "&studentClass=" + selectedStudent["studentClass"] +
         "&seatNumber=" + selectedStudent["seatNumber"] +
