@@ -13,10 +13,8 @@ import os
 
 # 獲取腳本所在目錄的絕對路徑
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
 # 構建到靜態資源的絕對路徑
 audio_dir = os.path.join(script_dir, '..', 'static', 'audio', 'Tai_audio_test')
-
 # 接下來，您可以使用這個路徑來訪問或操作檔案
 
 
@@ -26,7 +24,7 @@ SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料\\")
 
 
 def duplicate_questions(questions) -> list:
@@ -122,6 +120,7 @@ def get_record_file():
     # for root, dirs, files in os.walk(f"C:/Program Files/Taiwanese_Correction/static/audio/Tai_audio_test/{school_name}/{student}"):
 
     full_path = os.path.join(audio_dir, school_name, student)
+    print(full_path)
     for root, dirs, files in os.walk(full_path):
         for file in files:
             if file.endswith(f"2_{question_number}.wav"):
@@ -306,5 +305,6 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
+    print(CORRECTION_DIR_ABSOLUTE_FILE_PATH)
     # app.run(host='localhost', port=31109, debug=True)
     waitress.serve(app, host="192.168.50.16", port=31109)
