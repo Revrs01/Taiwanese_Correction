@@ -199,7 +199,7 @@ def get_correction_data():
         return json.dumps(default_correction_pattern, ensure_ascii=False)
     else:
         # founded, open the file then check if exist that questionNumber's data
-        with open(path_of_current_correction_data, 'r') as js_file:
+        with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
             # JS structure -> {"1_r":{"正確性評分":"錯誤", ... }, "2_r":{"正確性評分":"正確", ...} ...}
             student_correction_data = json.loads(js_file.read())
 
@@ -225,7 +225,7 @@ def save_correction_data():
     # check the file existence first, then write the file
     try:
         with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-                  'r') as js_file:
+                  'r', encoding='utf-8') as js_file:
             student_correction_data = json.loads(js_file.read())
         return_message = "FILE FOUND"
 
@@ -235,7 +235,7 @@ def save_correction_data():
 
     student_correction_data[question_number] = correction_data
     with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-              'w') as write_file:
+              'w', encoding='utf-8') as write_file:
         write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
 
     return return_message
@@ -255,7 +255,7 @@ def get_correction_status():
     if path_of_current_correction_data == "":
         return "{}"
     else:
-        with open(path_of_current_correction_data, 'r') as js_file:
+        with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
             correction_data = js_file.read()
         return correction_data
 
@@ -282,7 +282,7 @@ def get_correction_progress():
                 EXAM_QUESTIONS["examQuestionHighGrade"])
 
         if path_of_current_correction_data != "":
-            with open(path_of_current_correction_data, 'r') as js_file:
+            with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
                 correction_data = json.loads(js_file.read())
 
             correction_progresses.append(math.floor((len(correction_data) / examination_length) * 100))
