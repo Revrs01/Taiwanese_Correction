@@ -1,6 +1,8 @@
 import base64
 import json
 import math
+from pathlib import Path
+import pandas as pd
 import waitress
 
 from flask import Flask, render_template, request
@@ -292,6 +294,50 @@ def get_correction_progress():
     return json.dumps(correction_progresses, ensure_ascii=False)
 
 
+@app.route('/output_xlsx', methods=["POST"])
+def output_xlsx():
+    """
+    only output the current saved data
+    :return:
+    """
+    aggregated_data = []
+    with open(os.path.join(script_dir, 'question_mapper.js'), 'r', encoding='utf-8') as qm:
+        question_mapper = json.loads(qm.read())
+
+    for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
+        for file in files:
+            if file.endswith('.js'):
+                with open(os.path.join(root, file), 'r', encoding='utf-8') as correction_js:
+                    current_student_correction_data = json.loads(correction_js.read())
+                current_student_personal_information = Path(file).stem.split('_')
+                extract_correctness = question_mapper["correction_dict"].copy()
+
+                for correctness in current_student_correction_data.keys():
+                    if current_student_correction_data[correctness]["正確性評分"] == "正確":
+                        extract_correctness[correctness] = 1
+                    elif current_student_correction_data[correctness]["正確性評分"] == "錯誤" or "沒念/毋知/袂曉":
+                        extract_correctness[correctness] = 0
+                    else:
+                        extract_correctness[correctness] = 'X'
+
+                current_student_correction_data_list_form = [current_student_personal_information[0],
+                                                             current_student_personal_information[1],
+                                                             current_student_personal_information[2],
+                                                             current_student_personal_information[3],
+                                                             current_student_personal_information[4]]
+
+                for index in question_mapper["question_index"]:
+                    current_student_correction_data_list_form.append(extract_correctness[index])
+
+                aggregated_data.append(current_student_correction_data_list_form)
+
+    aggregate_dataframe = pd.DataFrame(aggregated_data,
+                                       columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] + question_mapper["question_list"])
+    aggregate_dataframe.to_excel("output.xlsx", index=False)
+
+    return "file generated !"
+
+
 @app.route('/')
 def home_page():
     SQL_CONNECTION.ping(reconnect=True)
@@ -305,6 +351,6 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    print(CORRECTION_DIR_ABSOLUTE_FILE_PATH)
+    output_xlsx()
     # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host="192.168.50.16", port=31109)
+    # waitress.serve(app, host="192.168.50.16", port=31109)
