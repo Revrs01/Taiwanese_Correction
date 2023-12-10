@@ -11,7 +11,6 @@ import os
 
 app = Flask(__name__)
 
-import os
 
 # 獲取腳本所在目錄的絕對路徑
 script_dir = os.path.dirname(os.path.abspath(__file__))
