@@ -314,7 +314,9 @@ def output_xlsx():
                     for correctness in current_student_correction_data.keys():
                         if current_student_correction_data[correctness]["正確性評分"] == "正確":
                             extract_correctness[correctness] = 1
-                        elif current_student_correction_data[correctness]["正確性評分"] == "錯誤" or "沒念/毋知/袂曉":
+                        elif current_student_correction_data[correctness]["正確性評分"] == "錯誤":
+                            extract_correctness[correctness] = 0
+                        elif current_student_correction_data[correctness]["正確性評分"] == "沒念/毋知/袂曉":
                             extract_correctness[correctness] = 0
                         else:
                             extract_correctness[correctness] = 'X'
@@ -333,11 +335,9 @@ def output_xlsx():
         aggregate_dataframe = pd.DataFrame(aggregated_data,
                                            columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] + question_mapper[
                                                "question_list"])
-        aggregate_dataframe.to_excel("output.xlsx", index=False)
+        aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
 
-        return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True,
-                         download_name="學生總表.xlsx",
-                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
     except Exception as E:
         print(E)
         return "ERROR"
@@ -356,5 +356,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    app.run(host='localhost', port=31109, debug=True)
-    # waitress.serve(app, host="192.168.50.16", port=31109)
+    # app.run(host='localhost', port=31109, debug=True)
+    waitress.serve(app, host="192.168.50.16", port=31109)
