@@ -13,6 +13,7 @@ let CURRENT_CORRECTING_NUMBER = "";
 
 $(document).ready(() => {
     $('#cardTitle').append($studentName);
+    $('#studentDetailInformation').append(`${$schoolName.substring(0, $schoolName.length - 6)} ${$grade} 年 ${$studentClass} 班 ${$seatNumber} 號`)
     let grade = urlParameters.get("grade");
     fetchStudentQuestion(grade);
 });

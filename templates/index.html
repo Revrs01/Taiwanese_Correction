@@ -55,9 +55,15 @@
         <div class="col">
             <div class="card shadow">
                 <div class="card-header border-0">
-                    <h3 class="mb-0" style="font-size: 32px;">學生總表</h3>
+                    <h3 class="mb-0" style="font-size: 32px;">
+                        學生總表
+                    </h3>
                     <span id="filterSpan" style="font-size:18px;cursor:pointer"
                           onclick="openOffcanvas()">&#9776; 篩選學生</span>
+                    <div class="text-right">
+                        <button class="btn" id="exportButton" onclick="exportExcelFile()">輸出 EXCEL</button>
+
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table align-items-center table-flush" id="mainTable">

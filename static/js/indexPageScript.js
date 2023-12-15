@@ -38,7 +38,7 @@ function appendMainTable() {
     let $mainTable = $("#mainTable")
     for (let index = PAGE_NUMBER * 40; index < (PAGE_NUMBER + 1) * 40; index++) {
         let state = ``
-        if (CORRECTION_PROGRESS[index] > 0){
+        if (CORRECTION_PROGRESS[index] > 0) {
             state = `<span class="badge badge-dot mr-4"><i class="bg-info"></i> 校正中</span>`
         } else if (CORRECTION_PROGRESS[index] === 100) {
             state = `<span class="badge badge-dot mr-4"><i class="bg-success"></i> 校正完成</span>`
@@ -226,4 +226,42 @@ function switchPage(object) {
                         </thead>`)
     $currentPage.innerText = PAGE_NUMBER;
     fetchAllStudent();
+}
+
+function exportExcelFile() {
+    fetch('/output_xlsx', {
+        method: 'POST',
+    })
+        .then(response => {
+            if (response.ok) {
+                // If the response is successful, trigger a download
+                return response.blob();
+            } else {
+                throw new Error('Failed to download file');
+            }
+        })
+        .then((blob) => {
+            // Create a link element to trigger the download
+            const a = document.createElement('a');
+            const url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = '學生總表.xlsx'; // Specify the desired filename for the user
+            a.style.display = 'none';
+
+            // Append the link to the document and trigger a click event
+            document.body.appendChild(a);
+            a.click();
+
+            // Remove the link from the document
+            document.body.removeChild(a);
+
+            // Clean up by revoking the object URL
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('發生錯誤，請通知相關負責人');
+        });
+
+
 }
