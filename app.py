@@ -43,6 +43,29 @@ def fetch_questions():
     EXAM_QUESTIONS = json.loads(js_string)
 
 
+def fetch_school_region():
+    global SQL_CURSOR
+    sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_elementary_school`;"
+    SQL_CURSOR.execute(sql)
+    SQL_CONNECTION.commit()
+    result = SQL_CURSOR.fetchall()
+
+    north_area, south_area, east_area, mid_area = set(), set(), set(), set()
+
+    for school_code, city, school_name, region in result:
+        cur_school = f"{school_name}{school_code}"
+        if region == "北區":
+            north_area.add(cur_school)
+        elif region == "南區":
+            south_area.add(cur_school)
+        elif region == "東區":
+            east_area.add(cur_school)
+        elif region == "中區":
+            mid_area.add(cur_school)
+
+    return north_area, south_area, east_area, mid_area
+
+
 @app.route('/filter_by_selections', methods=["POST"])
 def filter_by_selections():
     global STUDENT_DATA, FILTERED_STUDENT_DATA
@@ -298,6 +321,8 @@ def output_xlsx():
     only output the current saved data
     :return:
     """
+    north_area, south_area, east_area, mid_area = fetch_school_region()
+    agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
     try:
         aggregated_data = []
         with open(os.path.join(script_dir, 'question_mapper.js'), 'r', encoding='utf-8') as qm:
@@ -332,10 +357,41 @@ def output_xlsx():
 
                     aggregated_data.append(current_student_correction_data_list_form)
 
+                    current_school = current_student_personal_information[0] + current_student_personal_information[1]
+                    if current_school in north_area:
+                        agg_north_area.append(current_student_correction_data_list_form)
+                    elif current_school in south_area:
+                        agg_south_area.append(current_student_correction_data_list_form)
+                    elif current_school in east_area:
+                        agg_east_area.append(current_student_correction_data_list_form)
+                    elif current_school in mid_area:
+                        agg_mid_area.append(current_student_correction_data_list_form)
+
         aggregate_dataframe = pd.DataFrame(aggregated_data,
-                                           columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] + question_mapper[
-                                               "question_list"])
-        aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+                                           columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
+                                                   question_mapper["question_list"])
+        agg_north_area_dataframe = pd.DataFrame(agg_north_area,
+                                                columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
+                                                        question_mapper["question_list"])
+
+        agg_south_area_dataframe = pd.DataFrame(agg_south_area,
+                                                columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
+                                                        question_mapper["question_list"])
+        agg_east_area_dataframe = pd.DataFrame(agg_east_area,
+                                               columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
+                                                       question_mapper["question_list"])
+
+        agg_mid_area_dataframe = pd.DataFrame(agg_mid_area,
+                                              columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
+                                                      question_mapper["question_list"])
+
+        # aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+        with pd.ExcelWriter('output.xlsx') as writer:
+            aggregate_dataframe.to_excel(writer, sheet_name='學生總表', index=False)
+            agg_north_area_dataframe.to_excel(writer, sheet_name='北區', index=False)
+            agg_south_area_dataframe.to_excel(writer, sheet_name='南區', index=False)
+            agg_east_area_dataframe.to_excel(writer, sheet_name='東區', index=False)
+            agg_mid_area_dataframe.to_excel(writer, sheet_name='中區', index=False)
 
         return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
     except Exception as E:
