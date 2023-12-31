@@ -402,7 +402,7 @@ def output_xlsx():
                                                       question_mapper["question_list"])
 
         aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
-        with pd.ExcelWriter('output.xlsx') as writer:
+        with pd.ExcelWriter(os.path.join(script_dir, "output.xlsx"), engine='openpyxl') as writer:
             if not aggregate_dataframe.empty:
                 print("Writing '總表'")
                 aggregate_dataframe.to_excel(writer, sheet_name='總表', index=False)
@@ -453,5 +453,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    app.run(host='localhost', port=31109, debug=True)
-    # waitress.serve(app, host="192.168.50.16", port=31109)
+    # app.run(host='localhost', port=31109, debug=True)
+    waitress.serve(app, host="192.168.50.16", port=31109)
