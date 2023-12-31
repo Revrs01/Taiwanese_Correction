@@ -48,11 +48,26 @@ def fetch_school_region():
     sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_elementary_school`;"
     SQL_CURSOR.execute(sql)
     SQL_CONNECTION.commit()
-    result = SQL_CURSOR.fetchall()
+    result_elementary = SQL_CURSOR.fetchall()
+    sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_junior_high_school`;"
+    SQL_CURSOR.execute(sql)
+    SQL_CONNECTION.commit()
+    result_junior = SQL_CURSOR.fetchall()
 
     north_area, south_area, east_area, mid_area = set(), set(), set(), set()
 
-    for school_code, city, school_name, region in result:
+    for school_code, _, school_name, region in result_elementary:
+        cur_school = f"{school_name}{school_code}"
+        if region == "北區":
+            north_area.add(cur_school)
+        elif region == "南區":
+            south_area.add(cur_school)
+        elif region == "東區":
+            east_area.add(cur_school)
+        elif region == "中區":
+            mid_area.add(cur_school)
+
+    for school_code, _, school_name, region in result_junior:
         cur_school = f"{school_name}{school_code}"
         if region == "北區":
             north_area.add(cur_school)
@@ -357,7 +372,8 @@ def output_xlsx():
 
                     aggregated_data.append(current_student_correction_data_list_form)
 
-                    current_school = current_student_personal_information[0] + current_student_personal_information[1]
+                    current_school = current_student_personal_information[0]
+               
                     if current_school in north_area:
                         agg_north_area.append(current_student_correction_data_list_form)
                     elif current_school in south_area:
@@ -385,13 +401,38 @@ def output_xlsx():
                                               columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
                                                       question_mapper["question_list"])
 
-        # aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+        aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
         with pd.ExcelWriter('output.xlsx') as writer:
-            aggregate_dataframe.to_excel(writer, sheet_name='學生總表', index=False)
-            agg_north_area_dataframe.to_excel(writer, sheet_name='北區', index=False)
-            agg_south_area_dataframe.to_excel(writer, sheet_name='南區', index=False)
-            agg_east_area_dataframe.to_excel(writer, sheet_name='東區', index=False)
-            agg_mid_area_dataframe.to_excel(writer, sheet_name='中區', index=False)
+            if not aggregate_dataframe.empty:
+                print("Writing '總表'")
+                aggregate_dataframe.to_excel(writer, sheet_name='總表', index=False)
+            else:
+                print("Skipped writing '總表' as the DataFrame is empty.")
+
+            if not agg_north_area_dataframe.empty:
+                print("Writing '北區'")
+                agg_north_area_dataframe.to_excel(writer, sheet_name='北區', index=False)
+            else:
+                print("Skipped writing '北區' as the DataFrame is empty.")
+
+            if not agg_south_area_dataframe.empty:
+                print("Writing '南區'")
+                agg_south_area_dataframe.to_excel(writer, sheet_name='南區', index=False)
+            else:
+                print("Skipped writing '南區' as the DataFrame is empty.")
+
+            if not agg_east_area_dataframe.empty:
+                print("Writing '東區'")
+                agg_east_area_dataframe.to_excel(writer, sheet_name='東區', index=False)
+            else:
+                print("Skipped writing '東區' as the DataFrame is empty.")
+
+            if not agg_mid_area_dataframe.empty:
+                print("Writing '中區'")
+                agg_mid_area_dataframe.to_excel(writer, sheet_name='中區', index=False)
+            else:
+                print("Skipped writing '中區' as the DataFrame is empty.")
+
 
         return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
     except Exception as E:
@@ -412,5 +453,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host="192.168.50.16", port=31109)
+    app.run(host='localhost', port=31109, debug=True)
+    # waitress.serve(app, host="192.168.50.16", port=31109)
