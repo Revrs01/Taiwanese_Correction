@@ -24,7 +24,7 @@ SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料\\")
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
 
 
 def duplicate_questions(questions) -> list:
@@ -213,24 +213,26 @@ def get_correction_data():
                 path_of_current_correction_data = os.path.join(root, file)
                 break
 
-    default_correction_pattern = {
-        "正確性評分": "",
-        "入聲": "",
-        "脫落": "",
-        "增加": "",
-        "清濁錯誤": "",
-        "讀成華語四聲": "",
-        "錯讀": "",
-        "變調錯誤": "",
-        "讀異音": "",
-        "讀異音詳細": "",
-        "連結字偏旁": "",
-        "從華語字義轉譯成台語": "",
-        "直接唸成華語讀法": "",
-        "字義理解錯誤": "",
-        "狀態": "",
-        "備註欄": "",
-    }
+    # default_correction_pattern = {
+    #     "正確性評分": "",
+    #     "入聲": "",
+    #     "脫落": "",
+    #     "增加": "",
+    #     "清濁錯誤": "",
+    #     "讀成華語四聲": "",
+    #     "錯讀": "",
+    #     "變調錯誤": "",
+    #     "讀異音": "",
+    #     "讀異音詳細": "",
+    #     "連結字偏旁": "",
+    #     "從華語字義轉譯成台語": "",
+    #     "直接唸成華語讀法": "",
+    #     "字義理解錯誤": "",
+    #     "狀態": "",
+    #     "備註欄": "",
+    # }
+    with open(os.path.join(script_dir, 'question_mapper.json'), 'r', encoding='ytf-8') as qm:
+        default_correction_pattern = json.loads(qm.read())["correction_dict"]
 
     # if file doesn't exist, then return NOT FOUND
     if path_of_current_correction_data == "":
@@ -238,13 +240,15 @@ def get_correction_data():
     else:
         # founded, open the file then check if exist that questionNumber's data
         with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
-            # JS structure -> {"1_r":{"正確性評分":"錯誤", ... }, "2_r":{"正確性評分":"正確", ...} ...}
+            # JS structure -> {"1_r":"1", "2_r":"0" ...}
             student_correction_data = json.loads(js_file.read())
 
-        if question_number in student_correction_data:
-            return json.dumps(student_correction_data[question_number], ensure_ascii=False)
-        else:
-            return json.dumps(default_correction_pattern, ensure_ascii=False)
+        # if question_number in student_correction_data:
+        #     return json.dumps(student_correction_data[question_number], ensure_ascii=False)
+        # else:
+        #     return json.dumps(default_correction_pattern, ensure_ascii=False)
+
+        return json.dumps(student_correction_data, ensure_ascii=False)
 
 
 @app.route('/save_correction_data', methods=["POST"])
@@ -262,19 +266,24 @@ def save_correction_data():
     student_correction_data = {}
     # check the file existence first, then write the file
     try:
-        with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-                  'r', encoding='utf-8') as js_file:
-            student_correction_data = json.loads(js_file.read())
-        return_message = "FILE FOUND"
+        try:
 
-    except FileNotFoundError as e:
-        print(e)
-        return_message = "NEW FILE CREATED"
+            with open(f'{os.path.join(CORRECTION_DIR_ABSOLUTE_FILE_PATH, schoolName_grade_studentClass_seatNumber_studentName)}.js',
+                      'r', encoding='utf-8') as js_file:
+                student_correction_data = json.loads(js_file.read())
+            return_message = "FILE FOUND"
 
-    student_correction_data[question_number] = correction_data
-    with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-              'w', encoding='utf-8') as write_file:
-        write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
+        except FileNotFoundError as e:
+            print(e)
+            return_message = "NEW FILE CREATED"
+
+        student_correction_data[question_number] = correction_data
+        with open(f'{os.path.join(CORRECTION_DIR_ABSOLUTE_FILE_PATH, schoolName_grade_studentClass_seatNumber_studentName)}.js',
+                  'w', encoding='utf-8') as write_file:
+            write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
+    except Exception as big_error:
+        print(big_error)
+        return "ERROR"
 
     return return_message
 
@@ -352,14 +361,10 @@ def output_xlsx():
                     extract_correctness = question_mapper["correction_dict"].copy()
 
                     for correctness in current_student_correction_data.keys():
-                        if current_student_correction_data[correctness]["正確性評分"] == "正確":
+                        if current_student_correction_data[correctness] == "1":
                             extract_correctness[correctness] = 1
-                        elif current_student_correction_data[correctness]["正確性評分"] == "錯誤":
+                        elif current_student_correction_data[correctness] == "0":
                             extract_correctness[correctness] = 0
-                        elif current_student_correction_data[correctness]["正確性評分"] == "沒念/毋知/袂曉":
-                            extract_correctness[correctness] = 0
-                        else:
-                            extract_correctness[correctness] = 'X'
 
                     current_student_correction_data_list_form = [current_student_personal_information[0],
                                                                  current_student_personal_information[1],
@@ -373,7 +378,7 @@ def output_xlsx():
                     aggregated_data.append(current_student_correction_data_list_form)
 
                     current_school = current_student_personal_information[0]
-               
+
                     if current_school in north_area:
                         agg_north_area.append(current_student_correction_data_list_form)
                     elif current_school in south_area:
@@ -433,7 +438,6 @@ def output_xlsx():
             else:
                 print("Skipped writing '中區' as the DataFrame is empty.")
 
-
         return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
     except Exception as E:
         print(E)
@@ -453,5 +457,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host="192.168.50.16", port=31109)
+    app.run(host='localhost', port=31109, debug=True)
+    # waitress.serve(app, host="192.168.50.16", port=31109)

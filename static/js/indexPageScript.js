@@ -38,7 +38,7 @@ function appendMainTable() {
     let $mainTable = $("#mainTable")
     for (let index = PAGE_NUMBER * 40; index < (PAGE_NUMBER + 1) * 40; index++) {
         let state = ``
-        if (CORRECTION_PROGRESS[index] > 0) {
+        if (CORRECTION_PROGRESS[index] > 0 && CORRECTION_PROGRESS[index] < 100) {
             state = `<span class="badge badge-dot mr-4"><i class="bg-info"></i> 校正中</span>`
         } else if (CORRECTION_PROGRESS[index] === 100) {
             state = `<span class="badge badge-dot mr-4"><i class="bg-success"></i> 校正完成</span>`
@@ -60,7 +60,7 @@ function appendMainTable() {
                                     <span class="mr-2">${CORRECTION_PROGRESS[index]}%</span>
                                     <div>
                                         <div class="progress">
-                                            <div class="progress-bar bg-warning" role="progressbar" aria-valuenow="${CORRECTION_PROGRESS[index]}"
+                                            <div class="progress-bar bg-success" role="progressbar" aria-valuenow="${CORRECTION_PROGRESS[index]}"
                                                  aria-valuemin="0" aria-valuemax="100" style="width: ${CORRECTION_PROGRESS[index]}%;"></div>
                                         </div>
                                     </div>

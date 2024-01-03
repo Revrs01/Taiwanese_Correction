@@ -931,6 +931,8 @@ button.bg-default:focus {
 
 .mr-2 {
     margin-right: .5rem !important;
+    min-width: 34px;
+    text-align: end;
 }
 
 .mr-3 {
