@@ -11,12 +11,10 @@ import os
 
 app = Flask(__name__)
 
-# 獲取腳本所在目錄的絕對路徑
+# fetch absolute file path for the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# 構建到靜態資源的絕對路徑
+# fetch absolute file path for audio directory
 audio_dir = os.path.join(script_dir, '..', 'static', 'audio', 'Tai_audio_test')
-# 接下來，您可以使用這個路徑來訪問或操作檔案
-
 
 # initial sql cursor
 SQL_CONNECTION = Cursor().get_connection()
@@ -24,7 +22,7 @@ SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
 FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
-CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料\\")
+CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
 
 
 def duplicate_questions(questions) -> list:
@@ -57,17 +55,6 @@ def fetch_school_region():
     north_area, south_area, east_area, mid_area = set(), set(), set(), set()
 
     for school_code, _, school_name, region in result_elementary:
-        cur_school = f"{school_name}{school_code}"
-        if region == "北區":
-            north_area.add(cur_school)
-        elif region == "南區":
-            south_area.add(cur_school)
-        elif region == "東區":
-            east_area.add(cur_school)
-        elif region == "中區":
-            mid_area.add(cur_school)
-
-    for school_code, _, school_name, region in result_junior:
         cur_school = f"{school_name}{school_code}"
         if region == "北區":
             north_area.add(cur_school)
@@ -135,7 +122,7 @@ def fetch_all_student():
         STUDENT_DATA.append({
             "schoolName": split_by_underline[0],
             "studentName": split_by_underline[1],
-            "gender": "男" if split_by_underline[2] == "1" else "女",
+            "gender": split_by_underline[2],
             "grade": split_by_underline[3],
             "studentClass": split_by_underline[4],
             "seatNumber": split_by_underline[5],
@@ -155,7 +142,6 @@ def get_record_file():
     question_number = req["questionNumber"]
 
     path_of_audio = ""
-    # for root, dirs, files in os.walk(f"C:/Program Files/Taiwanese_Correction/static/audio/Tai_audio_test/{school_name}/{student}"):
 
     full_path = os.path.join(audio_dir, school_name, student)
     print(full_path)
@@ -213,24 +199,8 @@ def get_correction_data():
                 path_of_current_correction_data = os.path.join(root, file)
                 break
 
-    default_correction_pattern = {
-        "正確性評分": "",
-        "入聲": "",
-        "脫落": "",
-        "增加": "",
-        "清濁錯誤": "",
-        "讀成華語四聲": "",
-        "錯讀": "",
-        "變調錯誤": "",
-        "讀異音": "",
-        "讀異音詳細": "",
-        "連結字偏旁": "",
-        "從華語字義轉譯成台語": "",
-        "直接唸成華語讀法": "",
-        "字義理解錯誤": "",
-        "狀態": "",
-        "備註欄": "",
-    }
+    with open(os.path.join(script_dir, 'question_mapper.json'), 'r', encoding='ytf-8') as qm:
+        default_correction_pattern = json.loads(qm.read())["correction_dict"]
 
     # if file doesn't exist, then return NOT FOUND
     if path_of_current_correction_data == "":
@@ -238,13 +208,10 @@ def get_correction_data():
     else:
         # founded, open the file then check if exist that questionNumber's data
         with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
-            # JS structure -> {"1_r":{"正確性評分":"錯誤", ... }, "2_r":{"正確性評分":"正確", ...} ...}
+            # JS structure -> {"1_r":"1", "2_r":"0" ...}
             student_correction_data = json.loads(js_file.read())
 
-        if question_number in student_correction_data:
-            return json.dumps(student_correction_data[question_number], ensure_ascii=False)
-        else:
-            return json.dumps(default_correction_pattern, ensure_ascii=False)
+        return json.dumps(student_correction_data, ensure_ascii=False)
 
 
 @app.route('/save_correction_data', methods=["POST"])
@@ -258,35 +225,46 @@ def save_correction_data():
     question_number = req["questionNumber"]
     correction_data = req["correctionData"]
     schoolName_grade_studentClass_seatNumber_studentName = req["schoolName_grade_studentClass_seatNumber_studentName"]
-
+    birthday = req["birthday"]
+    gender = req["gender"]
+    file_name = f"{schoolName_grade_studentClass_seatNumber_studentName}_{birthday}_{gender}"
     student_correction_data = {}
     # check the file existence first, then write the file
     try:
-        with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-                  'r', encoding='utf-8') as js_file:
-            student_correction_data = json.loads(js_file.read())
-        return_message = "FILE FOUND"
+        try:
 
-    except FileNotFoundError as e:
-        print(e)
-        return_message = "NEW FILE CREATED"
+            with open(f'{os.path.join(CORRECTION_DIR_ABSOLUTE_FILE_PATH, file_name)}.js',
+                      'r', encoding='utf-8') as js_file:
+                student_correction_data = json.loads(js_file.read())
+            return_message = "FILE FOUND"
 
-    student_correction_data[question_number] = correction_data
-    with open(f'{CORRECTION_DIR_ABSOLUTE_FILE_PATH}{schoolName_grade_studentClass_seatNumber_studentName}.js',
-              'w', encoding='utf-8') as write_file:
-        write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
+        except FileNotFoundError as e:
+            print(e)
+            return_message = "NEW FILE CREATED"
+
+        student_correction_data[question_number] = correction_data
+        with open(f'{os.path.join(CORRECTION_DIR_ABSOLUTE_FILE_PATH, file_name)}.js',
+                  'w', encoding='utf-8') as write_file:
+            write_file.write(json.dumps(student_correction_data, ensure_ascii=False))
+    except Exception as big_error:
+        print(big_error)
+        return "ERROR"
 
     return return_message
 
 
 @app.route('/get_correction_status', methods=["POST"])
 def get_correction_status():
-    schoolName_grade_studentClass_seatNumber_studentName = request.get_json()[
-        "schoolName_grade_studentClass_seatNumber_studentName"]
+    req = request.get_json()
+    schoolName_grade_studentClass_seatNumber_studentName = req["schoolName_grade_studentClass_seatNumber_studentName"]
+    birthday = req["birthday"]
+    gender = req["gender"]
+
+    file_name = f"{schoolName_grade_studentClass_seatNumber_studentName}_{birthday}_{gender}"
     path_of_current_correction_data = ""
     for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
         for file in files:
-            if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
+            if file.endswith(f"{file_name}.js"):
                 path_of_current_correction_data = os.path.join(root, file)
                 break
 
@@ -307,8 +285,10 @@ def get_correction_progress():
         path_of_current_correction_data = ""
         for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
             for file in files:
+                file_name = f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}_{student['birthdayYear']}_{student['birthdayMonth']}_{student['birthdayDay']}_{student['gender']}"
+
                 if file.endswith(
-                        f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}.js"):
+                        f"{file_name}.js"):
                     path_of_current_correction_data = os.path.join(root, file)
                     break
 
@@ -349,23 +329,18 @@ def output_xlsx():
                     with open(os.path.join(root, file), 'r', encoding='utf-8') as correction_js:
                         current_student_correction_data = json.loads(correction_js.read())
                     current_student_personal_information = Path(file).stem.split('_')
+
                     extract_correctness = question_mapper["correction_dict"].copy()
 
                     for correctness in current_student_correction_data.keys():
-                        if current_student_correction_data[correctness]["正確性評分"] == "正確":
+                        if current_student_correction_data[correctness] == "1":
                             extract_correctness[correctness] = 1
-                        elif current_student_correction_data[correctness]["正確性評分"] == "錯誤":
+                        elif current_student_correction_data[correctness] == "0":
                             extract_correctness[correctness] = 0
-                        elif current_student_correction_data[correctness]["正確性評分"] == "沒念/毋知/袂曉":
-                            extract_correctness[correctness] = 0
-                        else:
-                            extract_correctness[correctness] = 'X'
 
-                    current_student_correction_data_list_form = [current_student_personal_information[0],
-                                                                 current_student_personal_information[1],
-                                                                 current_student_personal_information[2],
-                                                                 current_student_personal_information[3],
-                                                                 current_student_personal_information[4]]
+                    current_student_correction_data_list_form = [x for x in current_student_personal_information]
+                    current_student_correction_data_list_form[-1] = "男" if current_student_correction_data_list_form[
+                                                                                -1] == "1" else "女"
 
                     for index in question_mapper["question_index"]:
                         current_student_correction_data_list_form.append(extract_correctness[index])
@@ -373,7 +348,7 @@ def output_xlsx():
                     aggregated_data.append(current_student_correction_data_list_form)
 
                     current_school = current_student_personal_information[0]
-               
+
                     if current_school in north_area:
                         agg_north_area.append(current_student_correction_data_list_form)
                     elif current_school in south_area:
@@ -382,26 +357,22 @@ def output_xlsx():
                         agg_east_area.append(current_student_correction_data_list_form)
                     elif current_school in mid_area:
                         agg_mid_area.append(current_student_correction_data_list_form)
+        column_of_student_information = ["學校名稱", "年級", "班級", "座號", "學生姓名", "生日(年)", "生日(月)",
+                                         "生日(日)", "性別"] + question_mapper["question_list"]
 
-        aggregate_dataframe = pd.DataFrame(aggregated_data,
-                                           columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
-                                                   question_mapper["question_list"])
-        agg_north_area_dataframe = pd.DataFrame(agg_north_area,
-                                                columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
-                                                        question_mapper["question_list"])
+        # collects every student's data
+        aggregate_dataframe = pd.DataFrame(aggregated_data, columns=column_of_student_information)
 
-        agg_south_area_dataframe = pd.DataFrame(agg_south_area,
-                                                columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
-                                                        question_mapper["question_list"])
-        agg_east_area_dataframe = pd.DataFrame(agg_east_area,
-                                               columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
-                                                       question_mapper["question_list"])
+        # collect only if the student's school is in that area
+        agg_north_area_dataframe = pd.DataFrame(agg_north_area, columns=column_of_student_information)
+        agg_south_area_dataframe = pd.DataFrame(agg_south_area, columns=column_of_student_information)
+        agg_east_area_dataframe = pd.DataFrame(agg_east_area, columns=column_of_student_information)
+        agg_mid_area_dataframe = pd.DataFrame(agg_mid_area, columns=column_of_student_information)
 
-        agg_mid_area_dataframe = pd.DataFrame(agg_mid_area,
-                                              columns=["學校名稱", "年級", "班級", "座號", "學生姓名"] +
-                                                      question_mapper["question_list"])
-
+        # save to local
         aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+
+        # write to each sheet if that area's DataFrame is not empty
         with pd.ExcelWriter(os.path.join(script_dir, "output.xlsx"), engine='openpyxl') as writer:
             if not aggregate_dataframe.empty:
                 print("Writing '總表'")
@@ -432,7 +403,6 @@ def output_xlsx():
                 agg_mid_area_dataframe.to_excel(writer, sheet_name='中區', index=False)
             else:
                 print("Skipped writing '中區' as the DataFrame is empty.")
-
 
         return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
     except Exception as E:
