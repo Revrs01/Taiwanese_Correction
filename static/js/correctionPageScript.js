@@ -101,7 +101,7 @@ async function appendCorrectionTable() {
     }
 
     $("#loader").addClass("hidden");
-    // $("#modalOverlay").addClass("hidden");
+    $("#modalOverlay").addClass("hidden");
 
 }
 

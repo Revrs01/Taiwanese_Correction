@@ -100,7 +100,7 @@ def filter_by_selections():
                 filter_iterator.append(student)
 
         FILTERED_STUDENT_DATA = filter_iterator.copy()
-
+    print(pd.DataFrame(FILTERED_STUDENT_DATA)[70:90])
     return json.dumps(FILTERED_STUDENT_DATA, ensure_ascii=False, indent=10)
 
 
