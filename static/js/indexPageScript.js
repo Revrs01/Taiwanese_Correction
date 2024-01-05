@@ -76,7 +76,7 @@ function appendMainTable() {
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["grade"]}</th>
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["studentClass"]}</th>
                             <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["seatNumber"]}</th>
-                            <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["gender"]}</th>
+                            <th scope="row" style="font-size: 16px;">${STUDENT_DATA[index]["gender"] === "1" ? "男" : "女"}</th>
                             <th>
                                 ${state}
                             </th>
@@ -110,8 +110,12 @@ function goToCorrectionPage(object) {
         "&grade=" + selectedStudent["grade"] +
         "&studentClass=" + selectedStudent["studentClass"] +
         "&seatNumber=" + selectedStudent["seatNumber"] +
-        "&studentName=" + selectedStudent["studentName"];
-    // window.open(url);
+        "&studentName=" + selectedStudent["studentName"] +
+        "&birthdayYear=" + selectedStudent["birthdayYear"] +
+        "&birthdayMonth=" + selectedStudent["birthdayMonth"] +
+        "&birthdayDay=" + selectedStudent["birthdayDay"] +
+        "&gender=" + selectedStudent["gender"];
+
     window.location = url;
 }
 
