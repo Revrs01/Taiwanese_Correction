@@ -11,14 +11,14 @@ $(document).ready(async () => {
         $('#filterGrade').val(sessionStorage.getItem('grade'));
         $('#filterSchoolName').val(sessionStorage.getItem('schoolName'));
         $('#filterStudentClass').val(sessionStorage.getItem('studentClass'));
-
+        $('#currentPage').text(sessionStorage.getItem('pageNumber'));
         filterStudent();
     } else {
         console.log("First entry, initialize sessionStorage");
         sessionStorage.setItem('schoolName', '');
         sessionStorage.setItem('studentClass', '');
         sessionStorage.setItem('grade', '');
-        sessionStorage.setItem('pageNumber', (0).toString());
+        sessionStorage.setItem('pageNumber', "0");
     }
 });
 
@@ -37,7 +37,7 @@ async function fetchAllStudent() {
     })
         .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
-            $('#currentPage').text(PAGE_NUMBER + 1);
+            $('#currentPage').text(toString(PAGE_NUMBER + 1));
             await getCorrectionProgress();
             appendMainTable();
             await appendFilterSelection();
@@ -204,8 +204,10 @@ function filterStudent() {
                         </tr>
                         </thead>`)
             await getCorrectionProgress();
-            PAGE_NUMBER = 0;
-            $("#currentPage").text(PAGE_NUMBER + 1);
+            PAGE_NUMBER = parseInt(sessionStorage.getItem('pageNumber'));
+            let $currentPage = $("#currentPage");
+            $currentPage.text.clear();
+            $currentPage.text(toString(PAGE_NUMBER + 1));
             appendMainTable();
             closeOffcanvas();
         })
@@ -219,7 +221,7 @@ async function resetFilter() {
     sessionStorage.setItem('schoolName', "");
     sessionStorage.setItem('studentClass', "");
     sessionStorage.setItem('grade', "");
-    sessionStorage.setItem('pageNumber', (0).toString());
+    sessionStorage.setItem('pageNumber', "0");
 
     let $mainTable = $("#mainTable");
     $mainTable.empty();
@@ -264,7 +266,8 @@ async function switchPage(object) {
                             <th scope="col" style="font-size: 18px;">校正按鈕</th>
                         </tr>
                         </thead>`)
-    $currentPage.text(PAGE_NUMBER + 1);
+    $currentPage.text.clear();
+    $currentPage.text(toString(PAGE_NUMBER + 1));
     await appendMainTable();
 }
 
