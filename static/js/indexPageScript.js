@@ -1,17 +1,15 @@
 let STUDENT_DATA = [];
 let CORRECTION_PROGRESS = [];
-let PAGE_NUMBER = 0;
+let PAGE_NUMBER = sessionStorage.getItem('pageNumber') === null ? 0 : parseInt(sessionStorage.getItem('pageNumber'));
 $(document).ready(async () => {
-    PAGE_NUMBER = sessionStorage.getItem('pageNumber') ? parseInt(sessionStorage.getItem('pageNumber')) : 0;
     await fetchAllStudent();
 
     if (sessionStorage.getItem('schoolName') || sessionStorage.getItem('studentClass') ||
         sessionStorage.getItem('grade')) {
-
+        console.log("YOU RUN INTO IF STATE");
         $('#filterGrade').val(sessionStorage.getItem('grade'));
         $('#filterSchoolName').val(sessionStorage.getItem('schoolName'));
         $('#filterStudentClass').val(sessionStorage.getItem('studentClass'));
-        $('#currentPage').text(sessionStorage.getItem('pageNumber'));
         filterStudent();
     } else {
         console.log("First entry, initialize sessionStorage");
@@ -19,6 +17,7 @@ $(document).ready(async () => {
         sessionStorage.setItem('studentClass', '');
         sessionStorage.setItem('grade', '');
         sessionStorage.setItem('pageNumber', "0");
+        sessionStorage.setItem('isFilterTriggered', "0");
     }
 });
 
@@ -37,7 +36,7 @@ async function fetchAllStudent() {
     })
         .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
-            $('#currentPage').text(toString(PAGE_NUMBER + 1));
+            $('#currentPage').text((PAGE_NUMBER + 1).toString());
             await getCorrectionProgress();
             appendMainTable();
             await appendFilterSelection();
@@ -105,7 +104,7 @@ function appendMainTable() {
 
 function goToCorrectionPage(object) {
     let selectedStudent = STUDENT_DATA[parseInt(object.attributes.buttonIndex.value)];
-    console.log(selectedStudent);
+
     let url = "correction_page?" + "schoolName=" + selectedStudent["schoolName"] +
         "&grade=" + selectedStudent["grade"] +
         "&studentClass=" + selectedStudent["studentClass"] +
@@ -174,6 +173,20 @@ function filterStudent() {
     let $studentClass = document.getElementById('filterStudentClass').value;
     let $grade = document.getElementById('filterGrade').value;
     let $mainTable = $("#mainTable");
+    let $currentPage = $("#currentPage");
+
+
+    if (sessionStorage.getItem('isFilterTriggered') === "1") {
+        // if the filter functionality is used, set PAGE_NUMBER to stored pageNumber
+        PAGE_NUMBER = parseInt(sessionStorage.getItem('pageNumber'));
+        $currentPage.text((PAGE_NUMBER + 1).toString());
+    } else {
+        // otherwise, this is a new incoming filter, then set PAGE_NUMBER to 0
+        PAGE_NUMBER = 0;
+        sessionStorage.setItem('pageNumber', "0");
+        $currentPage.text((PAGE_NUMBER + 1).toString());
+        sessionStorage.setItem('isFilterTriggered', "1");
+    }
 
     // set session to new filter information
     sessionStorage.setItem('schoolName', $schoolName);
@@ -204,16 +217,14 @@ function filterStudent() {
                         </tr>
                         </thead>`)
             await getCorrectionProgress();
-            PAGE_NUMBER = parseInt(sessionStorage.getItem('pageNumber'));
-            let $currentPage = $("#currentPage");
-            $currentPage.text.clear();
-            $currentPage.text(toString(PAGE_NUMBER + 1));
+
             appendMainTable();
             closeOffcanvas();
         })
 }
 
 async function resetFilter() {
+    sessionStorage.setItem('isFilterTriggered', "0");
     $("#filterSchoolName").val("");
     $("#filterStudentClass").val("");
     $("#filterGrade").val("");
@@ -248,6 +259,7 @@ async function switchPage(object) {
     } else if (object.innerText === '<' && PAGE_NUMBER !== 0) {
         PAGE_NUMBER--;
     } else {
+        alert("已經到底囉");
         return;
     }
     sessionStorage.setItem('pageNumber', PAGE_NUMBER.toString());
@@ -266,8 +278,7 @@ async function switchPage(object) {
                             <th scope="col" style="font-size: 18px;">校正按鈕</th>
                         </tr>
                         </thead>`)
-    $currentPage.text.clear();
-    $currentPage.text(toString(PAGE_NUMBER + 1));
+    $currentPage.text((PAGE_NUMBER + 1).toString());
     await appendMainTable();
 }
 
@@ -280,7 +291,7 @@ function exportExcelFile() {
                 // If the response is successful, trigger a download
                 return response.blob();
             } else {
-                throw new Error('Failed to download file');
+                throw new Error('None of correction file exist, or consist authorization problem');
             }
         })
         .then((blob) => {
@@ -303,7 +314,7 @@ function exportExcelFile() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('發生錯誤，請通知相關負責人');
+            alert('必須有一筆校正資料才能下載，若仍然無法下載，請聯絡相關負責人。');
         });
 
 

@@ -369,6 +369,9 @@ def output_xlsx():
         agg_east_area_dataframe = pd.DataFrame(agg_east_area, columns=column_of_student_information)
         agg_mid_area_dataframe = pd.DataFrame(agg_mid_area, columns=column_of_student_information)
 
+        if aggregate_dataframe.size == 0:
+            return "NO FILE EXIST", 400
+
         # save to local
         aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
 
