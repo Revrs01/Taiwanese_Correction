@@ -54,7 +54,7 @@ def fetch_school_region():
 
     north_area, south_area, east_area, mid_area = set(), set(), set(), set()
 
-    for school_code, _, school_name, region in result_elementary:
+    for school_code, _, school_name, region in set(result_elementary).union(set(result_junior)):
         cur_school = f"{school_name}{school_code}"
         if region == "北區":
             north_area.add(cur_school)
@@ -318,6 +318,7 @@ def output_xlsx():
     """
     north_area, south_area, east_area, mid_area = fetch_school_region()
     agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
+    correct, wrong, audioNoSound = "1", {"2", "3", "4"}, "X"
     try:
         aggregated_data = []
         with open(os.path.join(script_dir, 'question_mapper.js'), 'r', encoding='utf-8') as qm:
@@ -333,10 +334,12 @@ def output_xlsx():
                     extract_correctness = question_mapper["correction_dict"].copy()
 
                     for correctness in current_student_correction_data.keys():
-                        if current_student_correction_data[correctness] == "1":
-                            extract_correctness[correctness] = 1
-                        elif current_student_correction_data[correctness] == "0":
-                            extract_correctness[correctness] = 0
+                        if current_student_correction_data[correctness] == correct:
+                            extract_correctness[correctness] = "1"
+                        elif current_student_correction_data[correctness] in wrong:
+                            extract_correctness[correctness] = "0"
+                        elif current_student_correction_data[correctness] == "X":
+                            extract_correctness[correctness] = "X"
 
                     current_student_correction_data_list_form = [x for x in current_student_personal_information]
                     current_student_correction_data_list_form[-1] = "男" if current_student_correction_data_list_form[
