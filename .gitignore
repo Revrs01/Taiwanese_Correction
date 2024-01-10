@@ -4,3 +4,4 @@ static/audio/
 學生校正資料/
 .DS_Store
 *.xlsx
+mysql_data/
