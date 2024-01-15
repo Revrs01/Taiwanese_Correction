@@ -5,3 +5,5 @@ static/audio/
 .DS_Store
 *.xlsx
 mysql_data/
+CSR_certificate.crt
+CSR_privateKey.key

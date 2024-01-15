@@ -83,7 +83,7 @@ async function appendCorrectionTable() {
             } else if (currentStatus === "2") {
                 wrongButton = `<button class="btn" style="background-color: #f24213; color: white;" questionIndex="${index}" onclick="writeCorrection(this)" correctness="wrong">錯誤</button>`;
             } else if (currentStatus === "3") {
-                iDontKnowButton = `<button class="btn" style="background-color: #f24213; color: white;" questionIndex="${index}" onclick="writeCorrection(this)" correctness="iDontKnow">錯誤</button>`;
+                iDontKnowButton = `<button class="btn" style="background-color: #f24213; color: white;" questionIndex="${index}" onclick="writeCorrection(this)" correctness="iDontKnow">袂曉</button>`;
             } else if (currentStatus === "4") {
                 speakerSilenceButton = `<button class="btn" style="background-color: #f24213; color: white;" questionIndex="${index}" onclick="writeCorrection(this)" correctness="speakerSilence">錯誤</button>`;
             } else if (currentStatus === "X") {
