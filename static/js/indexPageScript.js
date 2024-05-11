@@ -2,11 +2,11 @@ let STUDENT_DATA = [];
 let CORRECTION_PROGRESS = [];
 let PAGE_NUMBER = sessionStorage.getItem('pageNumber') === null ? 0 : parseInt(sessionStorage.getItem('pageNumber'));
 $(document).ready(async () => {
-    await fetchAllStudent();
+    await fetchStudents();
 
     if (sessionStorage.getItem('schoolName') || sessionStorage.getItem('studentClass') ||
         sessionStorage.getItem('grade')) {
-        console.log("YOU RUN INTO IF STATE");
+        // console.log("YOU RUN INTO IF STATE");
         $('#filterGrade').val(sessionStorage.getItem('grade'));
         $('#filterSchoolName').val(sessionStorage.getItem('schoolName'));
         $('#filterStudentClass').val(sessionStorage.getItem('studentClass'));
@@ -25,14 +25,17 @@ async function goToHomePage() {
     window.location = '/';
     console.log("Go to HomePage, clear sessionStorage");
     sessionStorage.clear();
-    await fetchAllStudent();
+    await fetchStudents();
 }
 
-async function fetchAllStudent() {
+async function fetchStudents() {
     await $.ajax({
         type: "POST",
-        url: "/fetch_all_student",
+        url: "/fetch_students",
         contentType: "application/json",
+        data: JSON.stringify({
+            startIndex: (PAGE_NUMBER * 40).toString(),
+        }),
     })
         .then(async (response) => {
             STUDENT_DATA = JSON.parse(response);
@@ -56,11 +59,11 @@ async function getCorrectionProgress() {
 }
 
 function appendMainTable() {
-    let $mainTable = $("#mainTable")
-    for (let index = PAGE_NUMBER * 40; index < (PAGE_NUMBER + 1) * 40; index++) {
-        if (index >= STUDENT_DATA.length) {
-            break;
-        }
+    let $mainTable = $("#mainTable");
+    for (let index = 0; index < STUDENT_DATA.length; index++) {
+        // if (index >= STUDENT_DATA.length) {
+        //     break;
+        // }
         let state = ``
         if (CORRECTION_PROGRESS[index] > 0 && CORRECTION_PROGRESS[index] < 100) {
             state = `<span class="badge badge-dot mr-4"><i class="bg-info"></i> 校正中</span>`
@@ -249,12 +252,17 @@ async function resetFilter() {
                         </tr>
                         </thead>`)
     // await getCorrectionProgress();
-    await fetchAllStudent();
+    await fetchStudents();
     closeOffcanvas();
 }
 
 async function switchPage(object) {
-    if (object.innerText === '>' && (PAGE_NUMBER + 1) * 40 <= STUDENT_DATA.length) {
+    if (sessionStorage.getItem("isFilterTriggered") === "1") {
+        alert("已經到底囉");
+        return;
+    }
+
+    if (object.innerText === '>') {
         PAGE_NUMBER++;
     } else if (object.innerText === '<' && PAGE_NUMBER !== 0) {
         PAGE_NUMBER--;
@@ -279,6 +287,7 @@ async function switchPage(object) {
                         </tr>
                         </thead>`)
     $currentPage.text((PAGE_NUMBER + 1).toString());
+    await fetchStudents();
     await appendMainTable();
 }
 
@@ -298,12 +307,16 @@ function exportExcelFile(exportTypeBool) {
                 throw new Error('None of correction file exist, or consist authorization problem');
             }
         })
-        .then((blob) => {
+        .then(async (blob) => {
             // Create a link element to trigger the download
             const a = document.createElement('a');
-            const url = window.URL.createObjectURL(blob);
+            const url = window.URL.createObjectURL(await blob);
             a.href = url;
-            a.download = '學生總表.xlsx'; // Specify the desired filename for the user
+            if (exportTypeBool) {
+                a.download = "學生總表(完整).xlsx"
+            } else {
+                a.download = '學生總表(刪減).xlsx';
+            }
             a.style.display = 'none';
 
             // Append the link to the document and trigger a click event

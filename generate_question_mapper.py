@@ -3,7 +3,7 @@ import json
 
 def construct_question_mapping():
     # this is the index of the question
-    with open('C:\Program Files\Taiwanese_Correction\Taiwanese_Correction_v2\examQuestions2.js', 'r', encoding='utf-8') as q:
+    with open('C:\Program Files\Taiwanese_Correction\Taiwanese_Correction_v2\examQuestions2.json', 'r', encoding='utf-8') as q:
         question_data = json.loads(q.read())
 
     all_questions_correction = {}
@@ -23,7 +23,7 @@ def construct_question_mapping():
         question_index.append(f"{i}_p")
         question_index.append(f"{i}_c")
 
-    with open("C:\Program Files\Taiwanese_Correction\Taiwanese_Correction_v2\question_mapper.js", 'w', encoding='utf-8') as qm:
+    with open("C:\Program Files\Taiwanese_Correction\Taiwanese_Correction_v2\question_mapper.json", 'w', encoding='utf-8') as qm:
         qm.write(json.dumps({
             "question_index": question_index,
             "correction_dict": all_questions_correction,
