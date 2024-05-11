@@ -61,8 +61,8 @@
                     <span id="filterSpan" style="font-size:18px;cursor:pointer"
                           onclick="openOffcanvas()">&#9776; 篩選學生</span>
                     <div class="text-right">
-                        <button class="btn" id="exportButton" onclick="exportExcelFile()">輸出 EXCEL</button>
-
+                        <button class="btn" id="exportButton" onclick="exportExcelFile(false)">輸出 EXCEL (刪減)</button>
+                        <button class="btn" id="exportButton_origin_format" onclick="exportExcelFile(true)">輸出 EXCEL (完整)</button>
                     </div>
                 </div>
                 <div class="table-responsive">

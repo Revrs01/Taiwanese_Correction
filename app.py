@@ -37,7 +37,7 @@ def duplicate_questions(questions) -> list:
 
 def fetch_questions():
     global EXAM_QUESTIONS
-    with open(os.path.join(script_dir, 'examQuestions2.js'), 'r', encoding="utf-8") as js_file:
+    with open(os.path.join(script_dir, 'examQuestions2.json'), 'r', encoding="utf-8") as js_file:
         js_string = js_file.read()
     EXAM_QUESTIONS = json.loads(js_string)
 
@@ -317,12 +317,13 @@ def output_xlsx():
     only output the current saved data
     :return:
     """
+    exportType: bool = request.get_json()['exportType']
     north_area, south_area, east_area, mid_area = fetch_school_region()
     agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
-    correct, wrong, audioNoSound = "1", {"2", "3", "4"}, "X"
+
     try:
         aggregated_data = []
-        with open(os.path.join(script_dir, 'question_mapper.js'), 'r', encoding='utf-8') as qm:
+        with open(os.path.join(script_dir, 'question_mapper.json'), 'r', encoding='utf-8') as qm:
             question_mapper = json.loads(qm.read())
 
         for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
@@ -334,17 +335,31 @@ def output_xlsx():
 
                     extract_correctness = question_mapper["correction_dict"].copy()
 
-                    for correctness in current_student_correction_data.keys():
-                        if current_student_correction_data[correctness] == correct:
-                            extract_correctness[correctness] = "1"
-                        elif current_student_correction_data[correctness] in wrong:
-                            extract_correctness[correctness] = "0"
-                        elif current_student_correction_data[correctness] == "X":
-                            extract_correctness[correctness] = "X"
+                    if exportType:
+                        for correctness in current_student_correction_data.keys():
+                            if current_student_correction_data[correctness] == "1":
+                                extract_correctness[correctness] = "1"
+                            elif current_student_correction_data[correctness] == "2":
+                                extract_correctness[correctness] = "0"
+                            elif current_student_correction_data[correctness] == "4":
+                                extract_correctness[correctness] = "2"
+                            elif current_student_correction_data[correctness] == "3":
+                                extract_correctness[correctness] = "3"
+                            else:
+                                extract_correctness[correctness] = "X"
+
+                    else:
+                        for correctness in current_student_correction_data.keys():
+                            if current_student_correction_data[correctness] == "1":
+                                extract_correctness[correctness] = "1"
+                            elif current_student_correction_data[correctness] in {"2", "3", "4"}:
+                                extract_correctness[correctness] = "0"
+                            elif current_student_correction_data[correctness] == "X":
+                                extract_correctness[correctness] = "X"
 
                     current_student_correction_data_list_form = [x for x in current_student_personal_information]
-                    current_student_correction_data_list_form[-1] = "男" if current_student_correction_data_list_form[
-                                                                                -1] == "1" else "女"
+                    current_student_correction_data_list_form[-1] = \
+                        "男" if current_student_correction_data_list_form[-1] == "1" else "女"
 
                     for index in question_mapper["question_index"]:
                         current_student_correction_data_list_form.append(extract_correctness[index])
@@ -376,11 +391,13 @@ def output_xlsx():
         if aggregate_dataframe.size == 0:
             return "NO FILE EXIST", 400
 
+        save_file_name = "output_fully.xlsx" if exportType else "output_pruned.xlsx"
+
         # save to local
-        aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+        aggregate_dataframe.to_excel(os.path.join(script_dir, save_file_name), index=False)
 
         # write to each sheet if that area's DataFrame is not empty
-        with pd.ExcelWriter(os.path.join(script_dir, "output.xlsx"), engine='openpyxl') as writer:
+        with pd.ExcelWriter(os.path.join(script_dir, save_file_name), engine='openpyxl') as writer:
             if not aggregate_dataframe.empty:
                 print("Writing '總表'")
                 aggregate_dataframe.to_excel(writer, sheet_name='總表', index=False)
@@ -411,7 +428,7 @@ def output_xlsx():
             else:
                 print("Skipped writing '中區' as the DataFrame is empty.")
 
-        return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
+        return send_file(os.path.join(script_dir, save_file_name), as_attachment=True)
     except Exception as E:
         print(E)
         return "ERROR"
@@ -430,5 +447,5 @@ def correction_page():
 
 if __name__ == '__main__':
     fetch_questions()
-    # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host="192.168.50.16", port=31109)
+    app.run(host='localhost', port=31109, debug=True)
+    # waitress.serve(app, host="192.168.50.16", port=31109)

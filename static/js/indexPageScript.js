@@ -282,9 +282,13 @@ async function switchPage(object) {
     await appendMainTable();
 }
 
-function exportExcelFile() {
+function exportExcelFile(exportTypeBool) {
     fetch('/output_xlsx', {
         method: 'POST',
+        headers: {
+            'Content-Type': 'application/json', // specify that the data is JSON
+        },
+        body: JSON.stringify({exportType: exportTypeBool}),
     })
         .then(response => {
             if (response.ok) {
