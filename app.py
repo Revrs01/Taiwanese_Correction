@@ -37,7 +37,7 @@ def duplicate_questions(questions) -> list:
 
 def fetch_questions():
     global EXAM_QUESTIONS
-    with open(os.path.join(script_dir, 'examQuestions2.js'), 'r', encoding="utf-8") as js_file:
+    with open(os.path.join(script_dir, 'examQuestions2.json'), 'r', encoding="utf-8") as js_file:
         js_string = js_file.read()
     EXAM_QUESTIONS = json.loads(js_string)
 
@@ -71,23 +71,40 @@ def fetch_school_region():
 
 @app.route('/filter_by_selections', methods=["POST"])
 def filter_by_selections():
-    global STUDENT_DATA, FILTERED_STUDENT_DATA
+    global FILTERED_STUDENT_DATA
     selections = request.get_json()["selections"]
     print(selections)
-    FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
-    for selection in selections:
+    school_name = selections[0]["schoolName"] if len(selections[0]["schoolName"]) > 0 else '%%'
+    student_class = selections[1]["studentClass"] if len(selections[1]["studentClass"]) > 0 else '%%'
+    student_grade = selections[2]["grade"] if len(selections[2]["grade"]) > 0 else '%%'
 
-        filter_iterator = []
-        category, value = next(iter(selection)), selection[next(iter(selection))]
+    # FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
+    sql = f"""
+        SELECT RecordID from all_student_2023_new 
+        WHERE `RecordID` LIKE '{school_name}\_%%\_%%_{student_grade}\_{student_class}\_%%\_%%\_%%\_%%';
+        """
 
-        if value == "":
-            continue
+    SQL_CURSOR.execute(sql)
+    SQL_CONNECTION.commit()
 
-        for student in FILTERED_STUDENT_DATA:
-            if student[category] == value:
-                filter_iterator.append(student)
+    result = SQL_CURSOR.fetchall()
+    filter_storage = []
 
-        FILTERED_STUDENT_DATA = filter_iterator.copy()
+    for student in result:
+        split_by_underline = student[0].split("_")
+        filter_storage.append({
+            "schoolName": split_by_underline[0],
+            "studentName": split_by_underline[1],
+            "gender": split_by_underline[2],
+            "grade": split_by_underline[3],
+            "studentClass": split_by_underline[4],
+            "seatNumber": split_by_underline[5],
+            "birthdayYear": split_by_underline[6],
+            "birthdayMonth": split_by_underline[7],
+            "birthdayDay": split_by_underline[8]
+        })
+
+        FILTERED_STUDENT_DATA = filter_storage
 
     return json.dumps(FILTERED_STUDENT_DATA, ensure_ascii=False, indent=10)
 
@@ -95,29 +112,43 @@ def filter_by_selections():
 @app.route('/fetch_filter_selection', methods=["POST"])
 def fetch_filter_selection():
     global STUDENT_DATA
+    SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new;")
+    SQL_CONNECTION.commit()
+    result = SQL_CURSOR.fetchall()
 
     distinct_school_name = set()
     distinct_student_class = set()
     distinct_grade = set()
-    for student in STUDENT_DATA:
-        distinct_school_name.add(student["schoolName"])
-        distinct_student_class.add(student["studentClass"])
-        distinct_grade.add(student["grade"])
+
+    for student in result:
+        split_by_underline = student[0].split("_")
+
+        distinct_school_name.add(split_by_underline[0])
+        distinct_student_class.add(split_by_underline[4])
+        distinct_grade.add(split_by_underline[3])
+
+    # for student in STUDENT_DATA:
+    #     distinct_school_name.add(student["schoolName"])
+    #     distinct_student_class.add(student["studentClass"])
+    #     distinct_grade.add(student["grade"])
 
     return json.dumps({
-        "distinctSchoolName": sorted(list(distinct_school_name)),
+        "distinctSchoolName": list(distinct_school_name),
         "distinctStudentClass": sorted(list(distinct_student_class), key=int),
         "distinctGrade": sorted(list(distinct_grade))
     }, ensure_ascii=False)
 
 
-@app.route('/fetch_all_student', methods=["POST"])
+@app.route('/fetch_students', methods=["POST"])
 def fetch_all_student():
     global STUDENT_DATA, FILTERED_STUDENT_DATA
+    start_index = int(request.get_json()["startIndex"])
+
     STUDENT_DATA = []
-    SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new")
+    SQL_CURSOR.execute(f"SELECT RecordID from all_student_2023_new LIMIT 40 OFFSET {start_index}")
     SQL_CONNECTION.commit()
     result = SQL_CURSOR.fetchall()
+
     for student in result:
         split_by_underline = student[0].split("_")
         STUDENT_DATA.append({
@@ -280,16 +311,15 @@ def get_correction_status():
 @app.route('/get_correction_progress', methods=["POST"])
 def get_correction_progress():
     correction_progresses = []
+    global FILTERED_STUDENT_DATA
 
-    global STUDENT_DATA, FILTERED_STUDENT_DATA
     for student in FILTERED_STUDENT_DATA:
         path_of_current_correction_data = ""
         for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
             for file in files:
                 file_name = f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}_{student['birthdayYear']}_{student['birthdayMonth']}_{student['birthdayDay']}_{student['gender']}"
 
-                if file.endswith(
-                        f"{file_name}.js"):
+                if file.endswith(f"{file_name}.js"):
                     path_of_current_correction_data = os.path.join(root, file)
                     break
 
@@ -317,12 +347,13 @@ def output_xlsx():
     only output the current saved data
     :return:
     """
+    exportType: bool = request.get_json()['exportType']
     north_area, south_area, east_area, mid_area = fetch_school_region()
     agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
-    correct, wrong, audioNoSound = "1", {"2", "3", "4"}, "X"
+
     try:
         aggregated_data = []
-        with open(os.path.join(script_dir, 'question_mapper.js'), 'r', encoding='utf-8') as qm:
+        with open(os.path.join(script_dir, 'question_mapper.json'), 'r', encoding='utf-8') as qm:
             question_mapper = json.loads(qm.read())
 
         for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
@@ -334,17 +365,31 @@ def output_xlsx():
 
                     extract_correctness = question_mapper["correction_dict"].copy()
 
-                    for correctness in current_student_correction_data.keys():
-                        if current_student_correction_data[correctness] == correct:
-                            extract_correctness[correctness] = "1"
-                        elif current_student_correction_data[correctness] in wrong:
-                            extract_correctness[correctness] = "0"
-                        elif current_student_correction_data[correctness] == "X":
-                            extract_correctness[correctness] = "X"
+                    if exportType:
+                        for correctness in current_student_correction_data.keys():
+                            if current_student_correction_data[correctness] == "1":
+                                extract_correctness[correctness] = "1"
+                            elif current_student_correction_data[correctness] == "2":
+                                extract_correctness[correctness] = "0"
+                            elif current_student_correction_data[correctness] == "4":
+                                extract_correctness[correctness] = "2"
+                            elif current_student_correction_data[correctness] == "3":
+                                extract_correctness[correctness] = "3"
+                            else:
+                                extract_correctness[correctness] = "X"
+
+                    else:
+                        for correctness in current_student_correction_data.keys():
+                            if current_student_correction_data[correctness] == "1":
+                                extract_correctness[correctness] = "1"
+                            elif current_student_correction_data[correctness] in {"2", "3", "4"}:
+                                extract_correctness[correctness] = "0"
+                            elif current_student_correction_data[correctness] == "X":
+                                extract_correctness[correctness] = "X"
 
                     current_student_correction_data_list_form = [x for x in current_student_personal_information]
-                    current_student_correction_data_list_form[-1] = "男" if current_student_correction_data_list_form[
-                                                                                -1] == "1" else "女"
+                    current_student_correction_data_list_form[-1] = \
+                        "男" if current_student_correction_data_list_form[-1] == "1" else "女"
 
                     for index in question_mapper["question_index"]:
                         current_student_correction_data_list_form.append(extract_correctness[index])
@@ -376,11 +421,13 @@ def output_xlsx():
         if aggregate_dataframe.size == 0:
             return "NO FILE EXIST", 400
 
+        save_file_name = "output_fully.xlsx" if exportType else "output_pruned.xlsx"
+
         # save to local
-        aggregate_dataframe.to_excel(os.path.join(script_dir, "output.xlsx"), index=False)
+        aggregate_dataframe.to_excel(os.path.join(script_dir, save_file_name), index=False)
 
         # write to each sheet if that area's DataFrame is not empty
-        with pd.ExcelWriter(os.path.join(script_dir, "output.xlsx"), engine='openpyxl') as writer:
+        with pd.ExcelWriter(os.path.join(script_dir, save_file_name), engine='openpyxl') as writer:
             if not aggregate_dataframe.empty:
                 print("Writing '總表'")
                 aggregate_dataframe.to_excel(writer, sheet_name='總表', index=False)
@@ -411,7 +458,7 @@ def output_xlsx():
             else:
                 print("Skipped writing '中區' as the DataFrame is empty.")
 
-        return send_file(os.path.join(script_dir, "output.xlsx"), as_attachment=True)
+        return send_file(os.path.join(script_dir, save_file_name), as_attachment=True)
     except Exception as E:
         print(E)
         return "ERROR"
