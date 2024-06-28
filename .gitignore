@@ -6,3 +6,5 @@ static/audio/
 *.xlsx
 mysql_data/
 .env
+.secret
+Taibun_correction_web_db_backups

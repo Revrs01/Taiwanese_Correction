@@ -1,0 +1,34 @@
+version: "1.0"
+
+services:
+  mysql_db:
+    image: mysql:8.4.0
+    ports:
+      - "3307:3307"
+    env_file:
+      - .env
+    secrets:
+      - mysql_root_password
+      - mysql_user_password
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_TCP_PORT: ${ALT_DB_PORT}
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./Taibun_correction_web_db_backups:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+secrets:
+  mysql_root_password:
+    file: ./.secret/mysql_root_password.txt
+  mysql_user_password:
+    file: ./.secret/mysql_user_password.txt
