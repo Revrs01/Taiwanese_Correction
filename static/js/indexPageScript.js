@@ -138,7 +138,7 @@ async function appendFilterSelection() {
     let $studentClassSelection = $("#filterStudentClass");
 
     await $.ajax({
-        type: "POST",
+        type: "GET",
         url: "/fetch_filter_selection",
         contentType: "application/json",
     })
@@ -198,10 +198,15 @@ function filterStudent() {
 
     $.ajax({
         type: "POST",
-        url: "/filter_by_selections",
+        url: "/filter_by_options",
         contentType: "application/json",
         data: JSON.stringify({
-            selections: [{schoolName: $schoolName}, {studentClass: $studentClass}, {grade: $grade}]
+            // selections: [{schoolName: $schoolName}, {studentClass: $studentClass}, {grade: $grade}]
+            options: {
+                schoolName: $schoolName,
+                studentClass: $studentClass,
+                grade: $grade
+            }
         })
     })
         .then(async (response) => {

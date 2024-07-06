@@ -4,13 +4,19 @@ import json
 import math
 from pathlib import Path
 import pandas as pd
+from flask_cors import CORS
+import threading
 import waitress
 
-from flask import Flask, render_template, request, send_file
+from flask import Flask, request, send_file
 from SqlCursor import Cursor
 import os
 
+LOCK = threading.Lock()
+
 app = Flask(__name__)
+
+CORS(app)
 
 # fetch absolute file path for the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,37 +27,28 @@ audio_dir = os.path.join(script_dir, '..', 'static', 'audio', 'Tai_audio_test')
 SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
 STUDENT_DATA = []
-FILTERED_STUDENT_DATA = []
 EXAM_QUESTIONS = {}
 CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
 
 
-def duplicate_questions(questions) -> list:
-    duplicated = []
-    for index, q in enumerate(questions):
-        duplicated.append({f"{index + 1}_p": q})
-        duplicated.append({f"{index + 1}_c": f"{q} 造句"})
+def calc_correction_progress(assessments: dict) -> int:
+    count_list = [1 if x != "" else 0 for x in assessments.values()]
 
-    return duplicated
-
-
-def fetch_questions():
-    global EXAM_QUESTIONS
-    with open(os.path.join(script_dir, 'examQuestions2.json'), 'r', encoding="utf-8") as js_file:
-        js_string = js_file.read()
-    EXAM_QUESTIONS = json.loads(js_string)
+    return math.floor(sum(count_list) / len(count_list)) * 100
 
 
 def fetch_school_region():
     global SQL_CURSOR
-    sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_elementary_school`;"
-    SQL_CURSOR.execute(sql)
-    SQL_CONNECTION.commit()
-    result_elementary = SQL_CURSOR.fetchall()
-    sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_junior_high_school`;"
-    SQL_CURSOR.execute(sql)
-    SQL_CONNECTION.commit()
-    result_junior = SQL_CURSOR.fetchall()
+
+    with LOCK:
+        sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_elementary_school`;"
+        SQL_CURSOR.execute(sql)
+        SQL_CONNECTION.commit()
+        result_elementary = SQL_CURSOR.fetchall()
+        sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_junior_high_school`;"
+        SQL_CURSOR.execute(sql)
+        SQL_CONNECTION.commit()
+        result_junior = SQL_CURSOR.fetchall()
 
     north_area, south_area, east_area, mid_area = set(), set(), set(), set()
 
@@ -69,18 +66,32 @@ def fetch_school_region():
     return north_area, south_area, east_area, mid_area
 
 
-@app.route('/filter_by_selections', methods=["POST"])
-def filter_by_selections():
-    global FILTERED_STUDENT_DATA
-    selections = request.get_json()["selections"]
-    print(selections)
-    school_name = selections[0]["schoolName"] if len(selections[0]["schoolName"]) > 0 else '%%'
-    student_class = selections[1]["studentClass"] if len(selections[1]["studentClass"]) > 0 else '%%'
-    student_grade = selections[2]["grade"] if len(selections[2]["grade"]) > 0 else '%%'
+@app.route('/get_correction_details', methods=["POST"])
+# renewed
+def get_correction_details():
+    student_key = request.get_json()["studentKey"]
+    with LOCK:
+        SQL_CURSOR.execute("SELECT assessments FROM student_correction WHERE student_id=%s", student_key)
+        fetch_result = SQL_CURSOR.fetchone()
 
-    # FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
+    if fetch_result:
+        assessment_detail = eval(fetch_result[0])
+    else:
+        assessment_detail = {}
+
+    return json.dumps(assessment_detail, ensure_ascii=False)
+
+
+@app.route('/filter_by_options', methods=["POST"])
+# renewed
+def filter_by_options():
+    options = request.get_json()["options"]
+    school_name = options["schoolName"] if len(options["schoolName"]) > 0 else '%%'
+    student_class = options["studentClass"] if len(options["studentClass"]) > 0 else '%%'
+    student_grade = options["grade"] if len(options["grade"]) > 0 else '%%'
+
     sql = f"""
-        SELECT RecordID from all_student_2023_new 
+        SELECT RecordID FROM all_student_2023_new 
         WHERE `RecordID` LIKE '{school_name}\_%%\_%%_{student_grade}\_{student_class}\_%%\_%%\_%%\_%%';
         """
 
@@ -103,13 +114,49 @@ def filter_by_selections():
             "birthdayMonth": split_by_underline[7],
             "birthdayDay": split_by_underline[8]
         })
-
-        FILTERED_STUDENT_DATA = filter_storage
-
-    return json.dumps(FILTERED_STUDENT_DATA, ensure_ascii=False, indent=10)
+    return json.dumps(filter_storage, ensure_ascii=False, indent=10)
 
 
-@app.route('/fetch_filter_selection', methods=["POST"])
+@app.route('/update_correction_details', methods=["POST"])
+def update_correction_details():
+    obj = request.get_json()
+    student_id, question_index, update_val = obj["studentId"], obj["questionIndex"], obj["value"]
+    try:
+        with LOCK:
+            SQL_CURSOR.execute(f"""
+                                update student_correction 
+                                SET assessments=JSON_SET(assessments, '$."{question_index}"', '{update_val}') 
+                                where student_id='{student_id}'
+                                """)
+            SQL_CONNECTION.commit()
+
+        return "OK"
+    except Exception as e:
+        print(e)
+
+
+@app.route('/fetch_test_question', methods=["POST"])
+# renewed
+def fetch_test_question():
+    student_level = request.get_json()["studentLevel"]
+    with LOCK:
+        SQL_CURSOR.execute("select questions from question_table where questions_name=%s", student_level)
+        fetch_result = SQL_CURSOR.fetchone()
+
+    if fetch_result:
+        questions = eval(fetch_result[0])
+
+        order = questions['_order']
+        question_list = questions['question_list']
+
+        result = [question_list[x] for x in order]
+        return json.dumps({"_order": order, "questionList": result}, ensure_ascii=False)
+    else:
+        return json.dumps({})
+
+
+@app.route('/fetch_filter_selection', methods=["GET"])
+# renewed
 def fetch_filter_selection():
     global STUDENT_DATA
     SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new;")
@@ -139,34 +186,25 @@ def fetch_filter_selection():
     }, ensure_ascii=False)
 
 
-@app.route('/fetch_students', methods=["POST"])
-def fetch_all_student():
-    global STUDENT_DATA, FILTERED_STUDENT_DATA
-    start_index = int(request.get_json()["startIndex"])
+@app.route('/get_correction_progress', methods=["POST"])
+# renewed
+def get_correction_progress():
+    student_key = request.get_json()["studentKey"]
+    with LOCK:
+        SQL_CURSOR.execute("SELECT assessments from student_correction where student_id=%s", student_key)
+        assessments = SQL_CURSOR.fetchone()
 
-    STUDENT_DATA = []
-    SQL_CURSOR.execute(f"SELECT RecordID from all_student_2023_new LIMIT 40 OFFSET {start_index}")
-    SQL_CONNECTION.commit()
-    result = SQL_CURSOR.fetchall()
+    progress = 0
+    if assessments:
+        progress = calc_correction_progress(eval(assessments[0]))
 
-    for student in result:
-        split_by_underline = student[0].split("_")
-        STUDENT_DATA.append({
-            "schoolName": split_by_underline[0],
-            "studentName": split_by_underline[1],
-            "gender": split_by_underline[2],
-            "grade": split_by_underline[3],
-            "studentClass": split_by_underline[4],
-            "seatNumber": split_by_underline[5],
-            "birthdayYear": split_by_underline[6],
-            "birthdayMonth": split_by_underline[7],
-            "birthdayDay": split_by_underline[8]
-        })
-    FILTERED_STUDENT_DATA = STUDENT_DATA.copy()
-    return json.dumps(STUDENT_DATA, ensure_ascii=False, indent=10)
+    return json.dumps({
+        "progress": progress
+    }, ensure_ascii=False)
 
 
 @app.route('/get_record_file', methods=["POST"])
+# renewed
 def get_record_file():
     req = request.get_json()
     student = req["grade_studentClass_seatNumber_studentName"]
@@ -192,61 +230,8 @@ def get_record_file():
     return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
 
 
-@app.route('/fetch_student_questions', methods=["POST"])
-def fetch_student_questions():
-    global EXAM_QUESTIONS
-
-    grade = request.get_json()["grade"]
-
-    questions_for_student = []
-    for index, q in enumerate(EXAM_QUESTIONS["examQuestionRoman"]):
-        questions_for_student.append({f"{index + 1}_r": q})
-
-    if int(grade) <= 2:
-        all_exam_question = duplicate_questions(EXAM_QUESTIONS["examQuestionLowGrade"])
-        questions_for_student.extend(all_exam_question)
-    else:
-        all_exam_question = duplicate_questions(EXAM_QUESTIONS["examQuestionHighGrade"])
-        questions_for_student.extend(all_exam_question)
-
-    return json.dumps(questions_for_student, ensure_ascii=False)
-
-
-@app.route('/get_correction_data', methods=["POST"])
-def get_correction_data():
-    """
-    only for reading data purpose
-    :return:
-    """
-    schoolName_grade_studentClass_seatNumber_studentName \
-        = request.get_json()["schoolName_grade_studentClass_seatNumber_studentName"]
-
-    question_number = request.get_json()["questionNumber"]
-    print(question_number, schoolName_grade_studentClass_seatNumber_studentName)
-
-    path_of_current_correction_data = ""
-    for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
-        for file in files:
-            if file.endswith(f"{schoolName_grade_studentClass_seatNumber_studentName}.js"):
-                path_of_current_correction_data = os.path.join(root, file)
-                break
-
-    with open(os.path.join(script_dir, 'question_mapper.json'), 'r', encoding='ytf-8') as qm:
-        default_correction_pattern = json.loads(qm.read())["correction_dict"]
-
-    # if file doesn't exist, then return NOT FOUND
-    if path_of_current_correction_data == "":
-        return json.dumps(default_correction_pattern, ensure_ascii=False)
-    else:
-        # founded, open the file then check if exist that questionNumber's data
-        with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
-            # JS structure -> {"1_r":"1", "2_r":"0" ...}
-            student_correction_data = json.loads(js_file.read())
-
-        return json.dumps(student_correction_data, ensure_ascii=False)
-
-
 @app.route('/save_correction_data', methods=["POST"])
+# pending
 def save_correction_data():
     """
     save correction data for corresponding question number
@@ -285,63 +270,8 @@ def save_correction_data():
     return return_message
 
 
-@app.route('/get_correction_status', methods=["POST"])
-def get_correction_status():
-    req = request.get_json()
-    schoolName_grade_studentClass_seatNumber_studentName = req["schoolName_grade_studentClass_seatNumber_studentName"]
-    birthday = req["birthday"]
-    gender = req["gender"]
-
-    file_name = f"{schoolName_grade_studentClass_seatNumber_studentName}_{birthday}_{gender}"
-    path_of_current_correction_data = ""
-    for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
-        for file in files:
-            if file.endswith(f"{file_name}.js"):
-                path_of_current_correction_data = os.path.join(root, file)
-                break
-
-    if path_of_current_correction_data == "":
-        return "{}"
-    else:
-        with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
-            correction_data = js_file.read()
-        return correction_data
-
-
-@app.route('/get_correction_progress', methods=["POST"])
-def get_correction_progress():
-    correction_progresses = []
-    global FILTERED_STUDENT_DATA
-
-    for student in FILTERED_STUDENT_DATA:
-        path_of_current_correction_data = ""
-        for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
-            for file in files:
-                file_name = f"{student['schoolName']}_{student['grade']}_{student['studentClass']}_{student['seatNumber']}_{student['studentName']}_{student['birthdayYear']}_{student['birthdayMonth']}_{student['birthdayDay']}_{student['gender']}"
-
-                if file.endswith(f"{file_name}.js"):
-                    path_of_current_correction_data = os.path.join(root, file)
-                    break
-
-        if int(student["grade"]) <= 2:
-            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(
-                EXAM_QUESTIONS["examQuestionLowGrade"])
-        else:
-            examination_length = len(EXAM_QUESTIONS["examQuestionRoman"]) + 2 * len(
-                EXAM_QUESTIONS["examQuestionHighGrade"])
-
-        if path_of_current_correction_data != "":
-            with open(path_of_current_correction_data, 'r', encoding='utf-8') as js_file:
-                correction_data = json.loads(js_file.read())
-
-            correction_progresses.append(math.floor((len(correction_data) / examination_length) * 100))
-        else:
-            correction_progresses.append(0)
-
-    return json.dumps(correction_progresses, ensure_ascii=False)
-
-
 @app.route('/output_xlsx', methods=["POST"])
+# pending
 def output_xlsx():
     """
     only output the current saved data
@@ -464,18 +394,6 @@ def output_xlsx():
         return "ERROR"
 
 
-@app.route('/')
-def home_page():
-    SQL_CONNECTION.ping(reconnect=True)
-    return render_template('index.html')
-
-
-@app.route('/correction_page', methods=["GET"])
-def correction_page():
-    return render_template("correctionPage.html")
-
-
 if __name__ == '__main__':
-    fetch_questions()
-    # app.run(host='localhost', port=31109, debug=True)
-    waitress.serve(app, host="192.168.50.16", port=31109)
+    app.run(host='localhost', port=31109, debug=True)
+    # waitress.serve(app, host="192.168.50.16", port=31109)
