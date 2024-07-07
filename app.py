@@ -7,7 +7,7 @@ import pandas as pd
 from flask_cors import CORS
 import threading
 import waitress
-
+from filter_students import *
 from flask import Flask, request, send_file
 from SqlCursor import Cursor
 import os
@@ -26,9 +26,27 @@ audio_dir = os.path.join(script_dir, '..', 'static', 'audio', 'Tai_audio_test')
 # initial sql cursor
 SQL_CONNECTION = Cursor().get_connection()
 SQL_CURSOR = SQL_CONNECTION.cursor()
-STUDENT_DATA = []
 EXAM_QUESTIONS = {}
 CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(script_dir, "學生校正資料")
+
+FETCH_DEPENDENCY = {"2023_02": fetch_all, "2024_07": fetch_2023_02_is_2}
+CREATE_CORRECTION_TEMPLATE = {"2023_02": create_correction_template_2023_02,
+                              "2024_07": create_correction_template_2024_07}
+
+
+def fetch_student_by_conditions(student_id, correction_ref, student_level):
+    SQL_CURSOR.execute("select assessments from student_correction where student_id=%s and correction_ref=%s",
+                       (student_id, correction_ref))
+    query_result = SQL_CURSOR.fetchone()
+
+    if query_result is not None:
+        # if found assessment, return assessment
+        student_assessment = eval(query_result[0])
+        return student_assessment
+
+    # else, create a new correction template (based on correction_ref), insert into table then read from table
+    if CREATE_CORRECTION_TEMPLATE[correction_ref](student_id, correction_ref, student_level) == "DENIED":
+        return
 
 
 def calc_correction_progress(assessments: dict) -> int:
@@ -37,92 +55,107 @@ def calc_correction_progress(assessments: dict) -> int:
     return math.floor(sum(count_list) / len(count_list)) * 100
 
 
+def region_sort(region):
+    return {'中區': 0, '北區': 1, '南區': 2, '東區': 3}[region]
+
+
+def is_correction_data_exist(student_id: str) -> bool:
+    # Define the SQL query to check if the data exists
+    query = f"SELECT 1 FROM student_correction WHERE student_id=%s;"
+
+    # Execute the query
+    SQL_CURSOR.execute(query, student_id)
+
+    # Fetch one result
+    result = SQL_CURSOR.fetchone()
+
+    # Return True if a row was found, otherwise False
+    return result is not None
+
+
 def fetch_school_region():
-    global SQL_CURSOR
+    # global SQL_CURSOR
 
     with LOCK:
-        sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_elementary_school`;"
+        # token amount will exceed mysql session default limit (1024), make it 60000 (minimum of required)
+        SQL_CURSOR.execute("SET SESSION GROUP_CONCAT_MAX_LEN = 60000;")
+
+        sql = """SELECT 區域, GROUP_CONCAT(學校名稱, 學校代碼) AS s
+                    FROM (
+                        SELECT 學校代碼, 學校名稱, 區域 FROM region_of_elementary_school
+                        UNION ALL
+                        SELECT 學校代碼, 學校名稱, 區域 FROM region_of_junior_high_school
+                    ) AS concatenated_tables
+                    GROUP BY 區域;"""
         SQL_CURSOR.execute(sql)
-        SQL_CONNECTION.commit()
-        result_elementary = SQL_CURSOR.fetchall()
-        sql = "SELECT `學校代碼`, `鄉鎮市區`, `學校名稱`, `區域` FROM `region_of_junior_high_school`;"
-        SQL_CURSOR.execute(sql)
-        SQL_CONNECTION.commit()
-        result_junior = SQL_CURSOR.fetchall()
+        query_result = SQL_CURSOR.fetchall()
+        query_result = sorted(query_result, key=lambda x: region_sort(x[0]))
 
-    north_area, south_area, east_area, mid_area = set(), set(), set(), set()
+    mid_area, north_area, = set(query_result[0][1].split(",")), set(query_result[1][1].split(","))
+    south_area, east_area = set(query_result[2][1].split(",")), set(query_result[3][1].split(","))
 
-    for school_code, _, school_name, region in set(result_elementary).union(set(result_junior)):
-        cur_school = f"{school_name}{school_code}"
-        if region == "北區":
-            north_area.add(cur_school)
-        elif region == "南區":
-            south_area.add(cur_school)
-        elif region == "東區":
-            east_area.add(cur_school)
-        elif region == "中區":
-            mid_area.add(cur_school)
-
-    return north_area, south_area, east_area, mid_area
+    return mid_area, north_area, south_area, east_area
 
 
 @app.route('/get_correction_details', methods=["POST"])
-# renewed
 def get_correction_details():
-    student_key = request.get_json()["studentKey"]
-    with LOCK:
-        SQL_CURSOR.execute("SELECT assessments FROM student_correction WHERE student_id=%s", student_key)
-        fetch_result = SQL_CURSOR.fetchone()
+    try:
+        obj = request.get_json()
+        student_key = obj["studentKey"]
+        student_level = obj["studentLevel"]
+        correction_ref = obj["correctionRef"]
+    except Exception as e:
+        print(e)
+        return
 
-    if fetch_result:
-        assessment_detail = eval(fetch_result[0])
-    else:
-        assessment_detail = {}
+    try:
+        with LOCK:
 
-    return json.dumps(assessment_detail, ensure_ascii=False)
+            SQL_CURSOR.execute("select assessments from student_correction where student_id=%s and correction_ref=%s",
+                               (student_key, correction_ref))
+            query_result = SQL_CURSOR.fetchone()
+            if query_result is not None:
+                # if found assessment, return assessment
+                student_assessment = eval(query_result[0])
+                print("FOUNDED !")
+                return json.dumps(student_assessment, ensure_ascii=False)
+
+            # else, create a new correction template (based on correction_ref), insert into table then read from table
+            is_template_created = CREATE_CORRECTION_TEMPLATE[correction_ref](student_key, correction_ref, student_level)
+            if is_template_created == "DENIED":
+                return json.dumps({})
+            else:
+                return json.dumps(is_template_created, ensure_ascii=False)
+
+    except Exception as e:
+        print(e)
 
 
 @app.route('/filter_by_options', methods=["POST"])
-# renewed
 def filter_by_options():
     options = request.get_json()["options"]
     school_name = options["schoolName"] if len(options["schoolName"]) > 0 else '%%'
     student_class = options["studentClass"] if len(options["studentClass"]) > 0 else '%%'
     student_grade = options["grade"] if len(options["grade"]) > 0 else '%%'
+    correction_ref = options["correctionRef"]
 
-    sql = f"""
-        SELECT RecordID FROM all_student_2023_new 
-        WHERE `RecordID` LIKE '{school_name}\_%%\_%%_{student_grade}\_{student_class}\_%%\_%%\_%%\_%%';
-        """
-
-    SQL_CURSOR.execute(sql)
-    SQL_CONNECTION.commit()
-
-    result = SQL_CURSOR.fetchall()
-    filter_storage = []
-
-    for student in result:
-        split_by_underline = student[0].split("_")
-        filter_storage.append({
-            "schoolName": split_by_underline[0],
-            "studentName": split_by_underline[1],
-            "gender": split_by_underline[2],
-            "grade": split_by_underline[3],
-            "studentClass": split_by_underline[4],
-            "seatNumber": split_by_underline[5],
-            "birthdayYear": split_by_underline[6],
-            "birthdayMonth": split_by_underline[7],
-            "birthdayDay": split_by_underline[8]
-        })
-    return json.dumps(filter_storage, ensure_ascii=False, indent=10)
+    return FETCH_DEPENDENCY[correction_ref](school_name, student_grade, student_class)
 
 
 @app.route('/update_correction_details', methods=["POST"])
 def update_correction_details():
-    obj = request.get_json()
-    student_id, question_index, update_val = obj["studentId"], obj["questionIndex"], obj["value"]
+    try:
+        obj = request.get_json()
+        student_id, question_index, update_val = obj["studentId"], obj["questionIndex"], obj["value"]
+    except Exception as e:
+        print(e)
+        return
+
     try:
         with LOCK:
+            # if not is_correction_data_exist(student_id):
+            # put in default correction data template
+
             SQL_CURSOR.execute(f"""
                                 update student_correction 
                                 SET assessments=JSON_SET(assessments, '$."{question_index}"', '{update_val}') 
@@ -136,11 +169,11 @@ def update_correction_details():
 
 
 @app.route('/fetch_test_question', methods=["POST"])
-# renewed
 def fetch_test_question():
     student_level = request.get_json()["studentLevel"]
+
     with LOCK:
-        SQL_CURSOR.execute("select questions from question_table where questions_name=%s", student_level)
+        SQL_CURSOR.execute("select questions from question_table where student_level=%s", student_level)
         fetch_result = SQL_CURSOR.fetchone()
 
     if fetch_result:
@@ -158,14 +191,11 @@ def fetch_test_question():
 @app.route('/fetch_filter_selection', methods=["GET"])
 # renewed
 def fetch_filter_selection():
-    global STUDENT_DATA
-    SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new;")
-    SQL_CONNECTION.commit()
-    result = SQL_CURSOR.fetchall()
+    with LOCK:
+        SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new;")
+        result = SQL_CURSOR.fetchall()
 
-    distinct_school_name = set()
-    distinct_student_class = set()
-    distinct_grade = set()
+    distinct_school_name, distinct_student_class, distinct_grade = set(), set(), set()
 
     for student in result:
         split_by_underline = student[0].split("_")
@@ -173,11 +203,6 @@ def fetch_filter_selection():
         distinct_school_name.add(split_by_underline[0])
         distinct_student_class.add(split_by_underline[4])
         distinct_grade.add(split_by_underline[3])
-
-    # for student in STUDENT_DATA:
-    #     distinct_school_name.add(student["schoolName"])
-    #     distinct_student_class.add(student["studentClass"])
-    #     distinct_grade.add(student["grade"])
 
     return json.dumps({
         "distinctSchoolName": list(distinct_school_name),
@@ -278,7 +303,7 @@ def output_xlsx():
     :return:
     """
     exportType: bool = request.get_json()['exportType']
-    north_area, south_area, east_area, mid_area = fetch_school_region()
+    mid_area, north_area, south_area, east_area = fetch_school_region()
     agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
 
     try:
