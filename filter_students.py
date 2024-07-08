@@ -137,7 +137,6 @@ def create_correction_template_2024_07(student_id, correction_ref, student_level
     SQL_CONNECTION.commit()
 
     SQL_CURSOR.execute(
-        f"select assessments from student_correction where student_id={student_id} and correction_ref='{correction_ref}'")
+        f"select assessments from student_correction where student_id='{student_id}' and correction_ref='{correction_ref}'")
     return eval(SQL_CURSOR.fetchone()[0])
 
-# print(fetch_2023_02_is_2("國立臺東大學附小140601", "1", "3"))
