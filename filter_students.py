@@ -1,10 +1,7 @@
 import threading
 import json
 
-from SqlCursor import Cursor
-
-SQL_CONNECTION = Cursor().get_connection()
-SQL_CURSOR = SQL_CONNECTION.cursor()
+from shared_sql_connection import SQL_CONNECTION, SQL_CURSOR
 
 LOCK = threading.Lock()
 
@@ -44,26 +41,31 @@ def fetch_all(school_name, student_grade, student_class):
     return json.dumps(all_students, ensure_ascii=False, indent=10)
 
 
-def fetch_2023_02_is_2(school_name, student_grade, student_class):
+def fetch_student_require_second_check(school_name, student_grade, student_class):
     all_students = fetch_basic(school_name, student_grade, student_class)
 
-    re_arrange_student_info = set([
+    # In order to match the order in correction table
+    re_arrange_student_info = tuple(
         f'{student_info["schoolName"]}_{student_info["grade"]}_{student_info["studentClass"]}_{student_info["seatNumber"]}_{student_info["studentName"]}_{student_info["birthdayYear"]}_{student_info["birthdayMonth"]}_{student_info["birthdayDay"]}_{student_info["gender"]}'
-        for student_info in all_students])
+        for student_info in all_students)
+    re_arrange_student_info = ', '.join('"{0}"'.format(w) for w in re_arrange_student_info)
+
     SQL_CURSOR.execute("select required_question from question_require_check where correction_ref='2023_02'")
-    second_check_question = eval(SQL_CURSOR.fetchone()[0])
+    questions_require_second_check = eval(SQL_CURSOR.fetchone()[0])
 
-    students_needs_second_correction = set()
-    for question_num in second_check_question:
+    students_require_second_correction = []
+    for question_num in questions_require_second_check:
         sql = f"""select student_id from student_correction 
-                    where correction_ref='2023_02' and JSON_EXTRACT(assessments, '$."{question_num}"') = '2'"""
+                    where student_id in ({re_arrange_student_info}) and correction_ref='2023_02' 
+                    and JSON_EXTRACT(assessments, '$."{question_num}"') = '2'"""
         SQL_CURSOR.execute(sql)
-        students_needs_second_correction = students_needs_second_correction.union(
-            set([x[0] for x in SQL_CURSOR.fetchall()]))
 
-    students_needs_second_correction = students_needs_second_correction.intersection(re_arrange_student_info)
+        students_require_second_correction.extend([x[0] for x in SQL_CURSOR.fetchall()])
+
+    students_require_second_correction = set(students_require_second_correction)
+
     filter_storage = []
-    for student in students_needs_second_correction:
+    for student in students_require_second_correction:
         split_by_underline = student.split("_")
         filter_storage.append({
             "schoolName": split_by_underline[0],
@@ -82,7 +84,7 @@ def fetch_2023_02_is_2(school_name, student_grade, student_class):
 
 def create_correction_template_2023_02(student_id, correction_ref, student_level):
     SQL_CURSOR.execute(
-        f"select questions from question_table where correction_ref={correction_ref} and student_level={student_level}")
+        f"select questions from question_table where correction_ref='{correction_ref}' and student_level='{student_level}'")
     question_nums = eval(SQL_CURSOR.fetchone()[0])["_order"]
     assessment_template = {}
 
@@ -94,7 +96,7 @@ def create_correction_template_2023_02(student_id, correction_ref, student_level
     SQL_CONNECTION.commit()
 
     SQL_CURSOR.execute(
-        f"select assessments from student_correction where student_id={student_id} and correction_ref='{correction_ref}'")
+        f"select assessments from student_correction where student_id='{student_id}' and correction_ref='{correction_ref}'")
     return eval(SQL_CURSOR.fetchone()[0])
 
 
@@ -110,27 +112,19 @@ def create_correction_template_2024_07(student_id, correction_ref, student_level
 
     SQL_CURSOR.execute(f"select required_question from question_require_check where correction_ref='2023_02'")
 
-    require_check = eval(SQL_CURSOR.fetchone()[0])
-    need_to_check = []
-    for question_num in require_check:
+    questions_require_check = eval(SQL_CURSOR.fetchone()[0])
+    questions_pass_to_second_correction = []
+    for question_num in questions_require_check:
         if question_num in assessments_2023_02 and assessments_2023_02[question_num] == '2':
-            need_to_check.append(question_num)
+            questions_pass_to_second_correction.append(question_num)
 
     SQL_CURSOR.execute(
         f"select questions from question_table where correction_ref='{correction_ref}' and student_level='{student_level}'")
     questions = eval(SQL_CURSOR.fetchone()[0])
 
-    new_order = []
-    for ques in need_to_check:
-        for qn in questions["_order"]:
-            qn: str
-            if qn.startswith(ques):
-                new_order.append(qn)
-
-    questions["_order"] = new_order
     assessment_template = {}
     for q in questions["_order"]:
-        assessment_template[q] = ""
+        assessment_template[q] = {}
 
     SQL_CURSOR.execute(
         f"insert into student_correction (student_id, assessments, correction_ref) values ('{student_id}', '{json.dumps(assessment_template, ensure_ascii=False)}', '{correction_ref}')")
@@ -139,4 +133,3 @@ def create_correction_template_2024_07(student_id, correction_ref, student_level
     SQL_CURSOR.execute(
         f"select assessments from student_correction where student_id='{student_id}' and correction_ref='{correction_ref}'")
     return eval(SQL_CURSOR.fetchone()[0])
-

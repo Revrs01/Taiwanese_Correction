@@ -11,6 +11,7 @@ from filter_students import *
 from flask import Flask, request, send_file
 from SqlCursor import Cursor
 import os
+from shared_sql_connection import SQL_CONNECTION, SQL_CURSOR
 
 LOCK = threading.Lock()
 
@@ -25,15 +26,12 @@ AUDIO_DIR = os.path.join(SCRIPT_DIR, '..', 'static', 'audio', 'Tai_audio_test')
 # CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(SCRIPT_DIR, "學生校正資料")
 
 
-# initial sql cursor
-SQL_CONNECTION = Cursor().get_connection()
-SQL_CURSOR = SQL_CONNECTION.cursor()
-
 # different correction table need different functions
 FETCH_DEPENDENCY = {
     "2023_02": fetch_all,
-    "2024_07": fetch_2023_02_is_2
+    "2024_07": fetch_student_require_second_check
 }
+
 CREATE_CORRECTION_TEMPLATE = {
     "2023_02": create_correction_template_2023_02,
     "2024_07": create_correction_template_2024_07
@@ -113,7 +111,7 @@ def get_correction_details():
             # else, create a new correction template (based on correction_ref), insert into table then read from table
             is_template_created = CREATE_CORRECTION_TEMPLATE[correction_ref](student_key, correction_ref, student_level)
             if is_template_created == "DENIED":
-                return json.dumps({})
+                return "Student Does not have 2023_02 correction data !", 701
             else:
                 return json.dumps(is_template_created, ensure_ascii=False)
 
@@ -129,7 +127,8 @@ def filter_by_options():
     student_grade = options["grade"] if len(options["grade"]) > 0 else '%%'
     correction_ref = options["correctionRef"]
 
-    return FETCH_DEPENDENCY[correction_ref](school_name, student_grade, student_class)
+    with LOCK:
+        return FETCH_DEPENDENCY[correction_ref](school_name, student_grade, student_class)
 
 
 @app.route('/update_correction_details', methods=["POST"])
@@ -182,11 +181,10 @@ def fetch_test_question():
         return json.dumps({"_order": order, "questionList": result, "buttonKeys": rearrange_button_mapper},
                           ensure_ascii=False)
     else:
-        return json.dumps({})
+        return "Cannot find test question", 702
 
 
 @app.route('/fetch_filter_selection', methods=["GET"])
-# renewed
 def fetch_filter_selection():
     with LOCK:
         SQL_CURSOR.execute("SELECT RecordID from all_student_2023_new;")
@@ -209,7 +207,6 @@ def fetch_filter_selection():
 
 
 @app.route('/get_correction_progress', methods=["POST"])
-# renewed
 def get_correction_progress():
     req = request.get_json()
     student_key = req["studentKey"]
