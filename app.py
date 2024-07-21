@@ -134,23 +134,36 @@ def filter_by_options():
 @app.route('/update_correction_details', methods=["POST"])
 def update_correction_details():
     try:
+        syllable = None
         obj = request.get_json()
-        student_id, question_index, update_val = obj["studentId"], obj["questionIndex"], obj["value"]
+
+        student_id, question_number, update_val = obj["studentId"], obj["questionNumber"], obj["newValue"]
+        correction_ref = obj["correctionRef"]
+
+        if correction_ref == "2024_07":
+            syllable = obj["syllable"]
     except Exception as e:
         print(e)
         return
 
     try:
         with LOCK:
-            # if not is_correction_data_exist(student_id):
-            # put in default correction data template
-
-            SQL_CURSOR.execute(f"""
-                                update student_correction 
-                                SET assessments=JSON_SET(assessments, '$."{question_index}"', '{update_val}') 
-                                where student_id='{student_id}'
-                                """)
-            SQL_CONNECTION.commit()
+            if not syllable:
+                # correction_ref = 2023_02
+                SQL_CURSOR.execute(f"""
+                                    update student_correction 
+                                    SET assessments=JSON_SET(assessments, '$."{question_number}"', '{update_val}') 
+                                    where student_id='{student_id}' and correction_ref='{correction_ref}'
+                                    """)
+                SQL_CONNECTION.commit()
+            else:
+                # correction_ref = 2024_07
+                SQL_CURSOR.execute(f"""
+                                    update student_correction 
+                                    SET assessments=JSON_SET(assessments, '$."{question_number}"."{question_number}_{syllable}"', '{update_val}')
+                                    where student_id='{student_id}' and correction_ref='{correction_ref}'
+                                    """)
+                SQL_CONNECTION.commit()
 
         return "OK"
     except Exception as e:
