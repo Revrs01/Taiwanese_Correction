@@ -38,10 +38,19 @@ CREATE_CORRECTION_TEMPLATE = {
 }
 
 
-def calc_correction_progress(assessments: dict) -> int:
-    count_list = [1 if x != "" else 0 for x in assessments.values()]
+def calc_correction_progress(assessments: dict, syllables=None) -> int:
+    if syllables is None:
+        count_list = [1 if x != "" else 0 for x in assessments.values()]
 
-    return math.floor((sum(count_list) / len(count_list)) * 100)
+        return math.floor((sum(count_list) / len(count_list)) * 100)
+    else:
+        cnt = 0
+        total_cnt = 0
+        for key in assessments.keys():
+            cnt += len(assessments[key])
+            total_cnt += syllables[key]
+
+        return math.floor(cnt * 100 / total_cnt)
 
 
 def region_sort(region):
@@ -229,10 +238,17 @@ def get_correction_progress():
                            (student_key, correction_ref))
         assessments = SQL_CURSOR.fetchone()
 
+        if correction_ref == "2024_07":
+            SQL_CURSOR.execute("SELECT button_mapper from question_table where correction_ref='2024_07'")
+            syllables_for_each_question = SQL_CURSOR.fetchone()
+
     progress = 0
 
     if assessments:
-        progress = calc_correction_progress(eval(assessments[0]))
+        if correction_ref == "2023_02":
+            progress = calc_correction_progress(eval(assessments[0]))
+        elif correction_ref == "2024_07":
+            progress = calc_correction_progress(eval(assessments[0]), eval(syllables_for_each_question[0]))
 
     return json.dumps({
         "progress": progress
