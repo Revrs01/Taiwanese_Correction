@@ -1,6 +1,19 @@
 version: "1.0"
 
 services:
+  backend:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - "9083:9083"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: always
+    depends_on:
+      mysql_db:
+        condition: service_healthy
   mysql_db:
     image: mysql:8.4.0
     ports:

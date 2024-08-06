@@ -407,5 +407,5 @@ def get_record_file():
 
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=31109, debug=True)
+    app.run(host='0.0.0.0', port=9083, debug=True)
     # waitress.serve(app, host="192.168.50.16", port=31109)
