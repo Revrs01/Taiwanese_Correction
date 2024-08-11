@@ -283,6 +283,27 @@ def get_record_file():
     return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
 
 
+@app.route('/get_detail_correction_button', methods=["POST"])
+def get_detail_correction_button():
+    req = request.get_json()
+    correction_ref = req["correctionRef"]
+    question_number = req["questionNumber"]
+    syllable = req["whichSyllable"]
+
+    with LOCK:
+        SQL_CURSOR.execute(f"select show_buttons from detail_correction_button where correction_ref='{correction_ref}'")
+        show_buttons = SQL_CURSOR.fetchone()
+
+    if show_buttons:
+        show_buttons = eval(show_buttons[0])
+        try:
+            return json.dumps(show_buttons[question_number][f'{question_number}_{syllable}'], ensure_ascii=False)
+        except KeyError as e:
+            print(e)
+            return f"question number {question_number} or syllable {syllable} doesn't exist", 702
+
+    return "No detail correction button found"
+
 # @app.route('/output_xlsx', methods=["POST"])
 # # deprecated
 # def output_xlsx():
