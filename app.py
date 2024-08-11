@@ -12,11 +12,12 @@ from flask import Flask, request, send_file
 from SqlCursor import Cursor
 import os
 from shared_sql_connection import SQL_CONNECTION, SQL_CURSOR
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 LOCK = threading.Lock()
 
 app = Flask(__name__)
-
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Allow Cross Origin Connections
 CORS(app)
 
