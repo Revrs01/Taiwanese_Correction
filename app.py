@@ -39,19 +39,17 @@ CREATE_CORRECTION_TEMPLATE = {
 }
 
 
-def calc_correction_progress(assessments: dict, syllables=None) -> int:
+def calc_correction_progress(assessments: dict, syllables=None) -> (int, int):
     if syllables is None:
         count_list = [1 if x != "" else 0 for x in assessments.values()]
-
-        return math.floor((sum(count_list) / len(count_list)) * 100)
+        return math.floor((sum(count_list) / len(count_list)) * 100), len(count_list)
     else:
         cnt = 0
         total_cnt = 0
         for key in assessments.keys():
             cnt += len(assessments[key])
             total_cnt += syllables[key]
-
-        return math.floor(cnt * 100 / total_cnt)
+        return math.floor(cnt * 100 / total_cnt), len(assessments.keys())
 
 
 def region_sort(region):
@@ -244,15 +242,18 @@ def get_correction_progress():
             syllables_for_each_question = SQL_CURSOR.fetchone()
 
     progress = 0
+    number_of_questions = 0
 
     if assessments:
         if correction_ref == "2023_02":
-            progress = calc_correction_progress(eval(assessments[0]))
+            progress, number_of_questions = calc_correction_progress(eval(assessments[0]))
         elif correction_ref == "2024_07":
-            progress = calc_correction_progress(eval(assessments[0]), eval(syllables_for_each_question[0]))
+
+            progress, number_of_questions = calc_correction_progress(eval(assessments[0]), eval(syllables_for_each_question[0]))
 
     return json.dumps({
-        "progress": progress
+        "progress": progress,
+        "numberOfQuestions": number_of_questions
     }, ensure_ascii=False)
 
 

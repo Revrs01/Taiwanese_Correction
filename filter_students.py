@@ -118,13 +118,9 @@ def create_correction_template_2024_07(student_id, correction_ref, student_level
         if question_num in assessments_2023_02 and assessments_2023_02[question_num] == '2':
             questions_pass_to_second_correction.append(question_num)
 
-    SQL_CURSOR.execute(
-        f"select questions from question_table where correction_ref='{correction_ref}' and student_level='{student_level}'")
-    questions = eval(SQL_CURSOR.fetchone()[0])
-
     assessment_template = {}
-    for q in questions["_order"]:
-        assessment_template[q] = {}
+    for qN in questions_pass_to_second_correction:
+        assessment_template[qN] = {}
 
     SQL_CURSOR.execute(
         f"insert into student_correction (student_id, assessments, correction_ref) values ('{student_id}', '{json.dumps(assessment_template, ensure_ascii=False)}', '{correction_ref}')")
