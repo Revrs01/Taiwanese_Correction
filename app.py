@@ -1,31 +1,23 @@
 # -*- coding: utf-8 -*-
-import base64
-import json
+import logging
 import math
-from pathlib import Path
-import pandas as pd
 from flask_cors import CORS
-import threading
-import waitress
 from filter_students import *
-from flask import Flask, request, send_file
-from SqlCursor import Cursor
-import os
-from shared_sql_connection import SQL_CONNECTION, SQL_CURSOR
+from flask import Flask, request
+from shared_sql_connection import *
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+# from pathlib import Path
+# import pandas as pd
+# from flask import send_file
 
 LOCK = threading.Lock()
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # Allow Cross Origin Connections
 CORS(app)
-
-# PATHs
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-AUDIO_DIR = os.path.join(SCRIPT_DIR, '..', 'static', 'audio', 'Tai_audio_test')
-# CORRECTION_DIR_ABSOLUTE_FILE_PATH = os.path.join(SCRIPT_DIR, "學生校正資料")
-
 
 # different correction table need different functions
 FETCH_DEPENDENCY = {
@@ -94,6 +86,15 @@ def fetch_school_region():
     return mid_area, north_area, south_area, east_area
 
 
+@app.route('/reconnect_mysql', methods=["GET"])
+def reconnect_mysql():
+    try:
+        with LOCK:
+            reconnect()
+        return "CONNECTION RECONNECTED"
+    except Exception as e:
+        logging.error(e)
+
 @app.route('/get_correction_details', methods=["POST"])
 def get_correction_details():
     try:
@@ -102,7 +103,7 @@ def get_correction_details():
         student_level = obj["studentLevel"]
         correction_ref = obj["correctionRef"]
     except Exception as e:
-        print(e)
+        logging.error(e)
         return
 
     try:
@@ -113,7 +114,7 @@ def get_correction_details():
             if query_result is not None:
                 # if found assessment, return assessment
                 student_assessment = eval(query_result[0])
-                print("FOUNDED !")
+                logging.info("Student correction data founded !")
                 return json.dumps(student_assessment, ensure_ascii=False)
 
             # else, create a new correction template (based on correction_ref), insert into table then read from table
@@ -124,7 +125,7 @@ def get_correction_details():
                 return json.dumps(is_template_created, ensure_ascii=False)
 
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 
 @app.route('/filter_by_options', methods=["POST"])
@@ -151,7 +152,7 @@ def update_correction_details():
         if correction_ref == "2024_07":
             syllable = obj["syllable"]
     except Exception as e:
-        print(e)
+        logging.error(e)
         return
 
     try:
@@ -175,7 +176,7 @@ def update_correction_details():
 
         return "OK"
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 
 @app.route('/fetch_test_question', methods=["POST"])
@@ -248,7 +249,6 @@ def get_correction_progress():
         if correction_ref == "2023_02":
             progress, number_of_questions = calc_correction_progress(eval(assessments[0]))
         elif correction_ref == "2024_07":
-
             progress, number_of_questions = calc_correction_progress(eval(assessments[0]), eval(syllables_for_each_question[0]))
 
     return json.dumps({
@@ -257,31 +257,31 @@ def get_correction_progress():
     }, ensure_ascii=False)
 
 
-@app.route('/get_record_file', methods=["POST"])
+# @app.route('/get_record_file', methods=["POST"])
 # pending
-def get_record_file():
-    req = request.get_json()
-    student = req["grade_studentClass_seatNumber_studentName"]
-    school_name = req["schoolName"]
-    question_number = req["questionNumber"]
-
-    path_of_audio = ""
-
-    full_path = os.path.join(AUDIO_DIR, school_name, student)
-    print(full_path)
-    for root, dirs, files in os.walk(full_path):
-        for file in files:
-            if file.endswith(f"2_{question_number}.wav"):
-                path_of_audio = os.path.join(root, file)
-                break
-
-    try:
-        base64_encoder = base64.b64encode(open(path_of_audio, "rb").read())
-        base64_decoder = base64_encoder.decode("utf-8")
-    except FileNotFoundError as error:
-        print(error)
-        base64_decoder = ""
-    return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
+# def get_record_file():
+#     req = request.get_json()
+#     student = req["grade_studentClass_seatNumber_studentName"]
+#     school_name = req["schoolName"]
+#     question_number = req["questionNumber"]
+#
+#     path_of_audio = ""
+#
+#     full_path = os.path.join(AUDIO_DIR, school_name, student)
+#     print(full_path)
+#     for root, dirs, files in os.walk(full_path):
+#         for file in files:
+#             if file.endswith(f"2_{question_number}.wav"):
+#                 path_of_audio = os.path.join(root, file)
+#                 break
+#
+#     try:
+#         base64_encoder = base64.b64encode(open(path_of_audio, "rb").read())
+#         base64_decoder = base64_encoder.decode("utf-8")
+#     except FileNotFoundError as error:
+#         print(error)
+#         base64_decoder = ""
+#     return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
 
 
 @app.route('/get_detail_correction_button', methods=["POST"])
@@ -300,7 +300,7 @@ def get_detail_correction_button():
         try:
             return json.dumps(show_buttons[question_number][f'{question_number}_{syllable}'], ensure_ascii=False)
         except KeyError as e:
-            print(e)
+            logging.error(e)
             return f"question number {question_number} or syllable {syllable} doesn't exist", 702
 
     return "No detail correction button found"
@@ -429,6 +429,6 @@ def get_detail_correction_button():
 #         return "ERROR"
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9083, debug=True)
-    # waitress.serve(app, host="192.168.50.16", port=31109)
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=9083, debug=True)
+# waitress.serve(app, host="192.168.50.16", port=31109)
