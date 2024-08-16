@@ -2,6 +2,8 @@ services:
   backend:
     build:
       dockerfile: Dockerfile
+    networks:
+      - my_bridge_network
     env_file:
       - .env
     volumes:
@@ -14,7 +16,9 @@ services:
     build:
       dockerfile: Dockerfile_Nginx
     ports:
-      - "9999:9999"
+      - "9084:9084"
+    networks:
+      - my_bridge_network
     depends_on:
       - backend
     volumes:
@@ -24,6 +28,8 @@ services:
     image: mysql:8.4.0
     ports:
       - "3307:3307"
+    networks:
+      - my_bridge_network
     env_file:
       - .env
     secrets:
@@ -36,8 +42,8 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_TCP_PORT: ${ALT_DB_PORT}
     volumes:
-      - ./mysql_data:/var/lib/mysql
-      - ./Taibun_correction_web_db_backups:/docker-entrypoint-initdb.d
+      - ../mysql_data:/var/lib/mysql
+      - ../Taibun_correction_web_db_backups:/docker-entrypoint-initdb.d
     restart: always
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
@@ -51,3 +57,7 @@ secrets:
     file: ./.secret/mysql_root_password.txt
   mysql_user_password:
     file: ./.secret/mysql_user_password.txt
+
+networks:
+  my_bridge_network:
+    driver: bridge
