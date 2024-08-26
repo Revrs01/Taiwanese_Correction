@@ -149,6 +149,12 @@ def update_correction_details():
         student_id, question_number, update_val = obj["studentId"], obj["questionNumber"], obj["newValue"]
         correction_ref = obj["correctionRef"]
 
+        is_array = False
+
+        if isinstance(update_val, list):
+            update_val = "JSON_ARRAY({})".format(', '.join(f"'{v}'" for v in update_val))
+            is_array = True
+
         if correction_ref == "2024_07":
             syllable = obj["syllable"]
     except Exception as e:
@@ -167,11 +173,19 @@ def update_correction_details():
                 SQL_CONNECTION.commit()
             else:
                 # correction_ref = 2024_07
-                SQL_CURSOR.execute(f"""
-                                    update student_correction 
-                                    SET assessments=JSON_SET(assessments, '$."{question_number}"."{question_number}_{syllable}"', '{update_val}')
-                                    where student_id='{student_id}' and correction_ref='{correction_ref}'
-                                    """)
+                if is_array:
+                    SQL_CURSOR.execute(f"""
+                                        update student_correction 
+                                        SET assessments=JSON_SET(assessments, '$."{question_number}"."{question_number}_{syllable}"', {update_val})
+                                        where student_id='{student_id}' and correction_ref='{correction_ref}'
+                                        """)
+                else:
+                    SQL_CURSOR.execute(f"""
+                                        update student_correction 
+                                        SET assessments=JSON_SET(assessments, '$."{question_number}"."{question_number}_{syllable}"', '{update_val}')
+                                        where student_id='{student_id}' and correction_ref='{correction_ref}'
+                                        """)
+
                 SQL_CONNECTION.commit()
 
         return "OK"
