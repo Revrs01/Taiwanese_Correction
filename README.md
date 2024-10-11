@@ -1,5 +1,6 @@
 # Taiwanese Correction Main Backend Ver 2.0
 
+#### Current running on server `140.116.245.155` inside Docker container
 ## Features
 
 - **Cross-Origin Resource Sharing (CORS):** The app allows cross-origin connections.
