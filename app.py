@@ -7,10 +7,6 @@ from flask import Flask, request
 from shared_sql_connection import *
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-# from pathlib import Path
-# import pandas as pd
-# from flask import send_file
-
 LOCK = threading.Lock()
 
 app = Flask(__name__)
@@ -270,34 +266,6 @@ def get_correction_progress():
         "numberOfQuestions": number_of_questions
     }, ensure_ascii=False)
 
-
-# @app.route('/get_record_file', methods=["POST"])
-# pending
-# def get_record_file():
-#     req = request.get_json()
-#     student = req["grade_studentClass_seatNumber_studentName"]
-#     school_name = req["schoolName"]
-#     question_number = req["questionNumber"]
-#
-#     path_of_audio = ""
-#
-#     full_path = os.path.join(AUDIO_DIR, school_name, student)
-#     print(full_path)
-#     for root, dirs, files in os.walk(full_path):
-#         for file in files:
-#             if file.endswith(f"2_{question_number}.wav"):
-#                 path_of_audio = os.path.join(root, file)
-#                 break
-#
-#     try:
-#         base64_encoder = base64.b64encode(open(path_of_audio, "rb").read())
-#         base64_decoder = base64_encoder.decode("utf-8")
-#     except FileNotFoundError as error:
-#         print(error)
-#         base64_decoder = ""
-#     return json.dumps({"base64String": base64_decoder}, ensure_ascii=False)
-
-
 @app.route('/get_detail_correction_button', methods=["POST"])
 def get_detail_correction_button():
     req = request.get_json()
@@ -318,131 +286,3 @@ def get_detail_correction_button():
             return f"question number {question_number} or syllable {syllable} doesn't exist", 702
 
     return "No detail correction button found"
-
-# @app.route('/output_xlsx', methods=["POST"])
-# # deprecated
-# def output_xlsx():
-#     """
-#     only output the current saved data
-#     :return:
-#     """
-#     exportType: bool = request.get_json()['exportType']
-#     mid_area, north_area, south_area, east_area = fetch_school_region()
-#     agg_north_area, agg_south_area, agg_east_area, agg_mid_area = [], [], [], []
-#
-#     try:
-#         aggregated_data = []
-#         with open(os.path.join(SCRIPT_DIR, 'question_mapper.json'), 'r', encoding='utf-8') as qm:
-#             question_mapper = json.loads(qm.read())
-#
-#         for root, dirs, files in os.walk(CORRECTION_DIR_ABSOLUTE_FILE_PATH):
-#             for file in files:
-#                 if file.endswith('.js'):
-#                     with open(os.path.join(root, file), 'r', encoding='utf-8') as correction_js:
-#                         current_student_correction_data = json.loads(correction_js.read())
-#                     current_student_personal_information = Path(file).stem.split('_')
-#
-#                     extract_correctness = question_mapper["correction_dict"].copy()
-#
-#                     if exportType:
-#                         for correctness in current_student_correction_data.keys():
-#                             if current_student_correction_data[correctness] == "1":
-#                                 extract_correctness[correctness] = "1"
-#                             elif current_student_correction_data[correctness] == "2":
-#                                 extract_correctness[correctness] = "0"
-#                             elif current_student_correction_data[correctness] == "4":
-#                                 extract_correctness[correctness] = "2"
-#                             elif current_student_correction_data[correctness] == "3":
-#                                 extract_correctness[correctness] = "3"
-#                             else:
-#                                 extract_correctness[correctness] = "X"
-#
-#                     else:
-#                         for correctness in current_student_correction_data.keys():
-#                             if current_student_correction_data[correctness] == "1":
-#                                 extract_correctness[correctness] = "1"
-#                             elif current_student_correction_data[correctness] in {"2", "3", "4"}:
-#                                 extract_correctness[correctness] = "0"
-#                             elif current_student_correction_data[correctness] == "X":
-#                                 extract_correctness[correctness] = "X"
-#
-#                     current_student_correction_data_list_form = [x for x in current_student_personal_information]
-#                     current_student_correction_data_list_form[-1] = \
-#                         "男" if current_student_correction_data_list_form[-1] == "1" else "女"
-#
-#                     for index in question_mapper["question_index"]:
-#                         current_student_correction_data_list_form.append(extract_correctness[index])
-#
-#                     aggregated_data.append(current_student_correction_data_list_form)
-#
-#                     current_school = current_student_personal_information[0]
-#
-#                     if current_school in north_area:
-#                         agg_north_area.append(current_student_correction_data_list_form)
-#                     elif current_school in south_area:
-#                         agg_south_area.append(current_student_correction_data_list_form)
-#                     elif current_school in east_area:
-#                         agg_east_area.append(current_student_correction_data_list_form)
-#                     elif current_school in mid_area:
-#                         agg_mid_area.append(current_student_correction_data_list_form)
-#         column_of_student_information = ["學校名稱", "年級", "班級", "座號", "學生姓名", "生日(年)", "生日(月)",
-#                                          "生日(日)", "性別"] + question_mapper["question_list"]
-#
-#         # collects every student's data
-#         aggregate_dataframe = pd.DataFrame(aggregated_data, columns=column_of_student_information)
-#
-#         # collect only if the student's school is in that area
-#         agg_north_area_dataframe = pd.DataFrame(agg_north_area, columns=column_of_student_information)
-#         agg_south_area_dataframe = pd.DataFrame(agg_south_area, columns=column_of_student_information)
-#         agg_east_area_dataframe = pd.DataFrame(agg_east_area, columns=column_of_student_information)
-#         agg_mid_area_dataframe = pd.DataFrame(agg_mid_area, columns=column_of_student_information)
-#
-#         if aggregate_dataframe.size == 0:
-#             return "NO FILE EXIST", 400
-#
-#         save_file_name = "output_fully.xlsx" if exportType else "output_pruned.xlsx"
-#
-#         # save to local
-#         aggregate_dataframe.to_excel(os.path.join(SCRIPT_DIR, save_file_name), index=False)
-#
-#         # write to each sheet if that area's DataFrame is not empty
-#         with pd.ExcelWriter(os.path.join(SCRIPT_DIR, save_file_name), engine='openpyxl') as writer:
-#             if not aggregate_dataframe.empty:
-#                 print("Writing '總表'")
-#                 aggregate_dataframe.to_excel(writer, sheet_name='總表', index=False)
-#             else:
-#                 print("Skipped writing '總表' as the DataFrame is empty.")
-#
-#             if not agg_north_area_dataframe.empty:
-#                 print("Writing '北區'")
-#                 agg_north_area_dataframe.to_excel(writer, sheet_name='北區', index=False)
-#             else:
-#                 print("Skipped writing '北區' as the DataFrame is empty.")
-#
-#             if not agg_south_area_dataframe.empty:
-#                 print("Writing '南區'")
-#                 agg_south_area_dataframe.to_excel(writer, sheet_name='南區', index=False)
-#             else:
-#                 print("Skipped writing '南區' as the DataFrame is empty.")
-#
-#             if not agg_east_area_dataframe.empty:
-#                 print("Writing '東區'")
-#                 agg_east_area_dataframe.to_excel(writer, sheet_name='東區', index=False)
-#             else:
-#                 print("Skipped writing '東區' as the DataFrame is empty.")
-#
-#             if not agg_mid_area_dataframe.empty:
-#                 print("Writing '中區'")
-#                 agg_mid_area_dataframe.to_excel(writer, sheet_name='中區', index=False)
-#             else:
-#                 print("Skipped writing '中區' as the DataFrame is empty.")
-#
-#         return send_file(os.path.join(SCRIPT_DIR, save_file_name), as_attachment=True)
-#     except Exception as E:
-#         print(E)
-#         return "ERROR"
-
-
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', port=9083, debug=True)
-# waitress.serve(app, host="192.168.50.16", port=31109)

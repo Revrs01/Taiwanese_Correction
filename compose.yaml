@@ -13,8 +13,7 @@ services:
       mysql_db:
         condition: service_healthy
   nginx:
-    build:
-      dockerfile: Dockerfile_Nginx
+    image: nginx:1.27.2
     ports:
       - "9084:9084"
     networks:

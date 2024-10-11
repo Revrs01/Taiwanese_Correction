@@ -1,21 +1,96 @@
-# Taiwanese_Correction Ver 1.0
- 
-- 網頁主要分成以下頁面
-  - 全學生頁面
-  - 學生個人校正頁面
-  - 個人細項校正表
+# Taiwanese Correction Main Backend Ver 2.0
 
-- 關於資料儲存
-  - SQL: 讀取測驗網站保留的SQL table
-  - 每位學生的校正資料:
-    - JSON file, 儲存在 `./學生校正資料/` ，若有改動路徑，記得要換喔
-    - 每個JSON裡面都是Object of Objects, e.g. `{題號1: {各種細項...}, 題號2: {各種細項...}, ...}` ，用JSON其實很慢，如果有餘力可以換成其他NoSQL喔，讚讚
+## Features
 
-- 若是未來有修改題目內容，以下是要修改的地方
-  - fetch_questions()
-    - 這邊讀取題目js檔案，讀取的資料應為 `{題目類型: [題目]}` ,並用不同類型的題目作為KEY
-      -  以2023/10月份提供的題目為例，分成三類，羅馬字測驗、低年級題目、高年級題目，那資料必須為
-        -  `{"羅馬字測驗": [第1題，第2題, ...], "低年級題目": [第1題，第2題, ...], "高年級題目": [第1題，第2題, ...]}`
-  - fetch_student_questions()
-    - 若未來有新增新的題目類型那題目的後綴可能會增加，這邊要改
-    - 其中 duplicate_questions() 是因為台語測驗的念詞部分還有造句，但是題目只有一個，所以要複製一次
+- **Cross-Origin Resource Sharing (CORS):** The app allows cross-origin connections.
+- **SQL Connection:** The application integrates with a shared SQL connection to fetch and update student data.
+- **Dynamic Correction Template Fetching:** Depending on the specified year (e.g., `2023_02`, `2024_07`), the app fetches different student correction data and templates.
+- **Progress Calculation:** The script calculates the percentage of completed corrections based on the assessments provided.
+- **Proxy Fix Middleware:** To handle situations where the app is behind a reverse proxy, the app uses the `ProxyFix` middleware from `werkzeug`.
+- **Thread-safe operations:** A global lock (`LOCK`) is used to ensure that multi-threaded processes don't interfere with one another.
+
+## Folder Structure
+
+- **app.py**: Application entrypoint, handle all API calls, see detail methods in `app.py`
+- **filter_students.py**: Handles filtering of student data or fetching student-related information.
+- **shared_sql_connection.py**: Provides a shared mysql cursor to interact with the SQL database.
+- **.env**: stores mysql connection config for PyMySQL
+- **.secret**: stores MySQL user password and root password
+
+## Installation (Docker, Preferred)
+
+We use Docker to containerize our app, to run the container, follow these steps:
+
+1. **Clone the repository**:
+    ```bash
+    git clone <repository_url>
+    cd <repository_directory>
+    ```
+2. **Remove `../mysql` directory**:
+    Container will mount 2 directory when starting, `../mysql` & `../Taibun_correction_web_db_backups`, you should backup `../mysql` and remove it first.
+3. **Put 1 `.sql` backup file into `../Taibun_correction_web_db_backups`**: mysql container will initialize by reading this directory, it'll import database into mysql
+4. **Create a `.secret` directory inside the project directory**: you should create this directory first, and create 2 file inside it, `mysql_root_password.txt` & `mysql_user_password.txt`, enter password you preferred, it's recommend that they use different password.
+5. **Create a `.env` file**: change `.env_example` to `.env`, and insert required arguments.
+6. **Start Container**:
+    ```bash
+   docker compose up --build -d
+   ```
+7. **Remove Container**:
+    ```bash
+   docker compose down
+    ```
+## Installation (Local)
+
+1. **Clone the repository**:
+    ```bash
+    git clone <repository_url>
+    cd <repository_directory>
+    ```
+
+2. **Set up the virtual environment**:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
+
+3. **Install the required dependencies**:
+    Install Flask and other required libraries using `pip`:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Set up the database**:
+    - Ensure you have access to the SQL server that the application uses.
+    - Update the connection details in the `shared_sql_connection.py` file.
+    - choose 1 `.sql` backup from `Taibun_correction_web_db_backups` directory, restore it in your mysql server
+
+5. **Run the app**:
+    To start the development server, run the following command:
+    ```bash
+    waitress-serve --host=0.0.0.0 --port=<PORT> app:app
+    ```
+
+## Function stores in Dictionary
+
+The app defines routes to fetch and manage student data. Depending on the specific correction year, different functions are used for fetching data and creating correction templates.
+
+- **Fetch Student Data**: The application supports fetching student correction data based on the year.
+- **Create Correction Templates**: The app dynamically generates correction templates for different years based on the logic provided in `CREATE_CORRECTION_TEMPLATE`.
+
+
+## Configuration
+
+To customize the behavior of the app or change database connections, modify the following configuration files:
+
+- **shared_sql_connection.py**: Update the SQL connection details here.
+
+## Dependencies
+
+- `Python 3.10.14`
+- `Flask`
+- `Flask-CORS`
+- `PyMySQL`
+- `werkzeug` for middleware handling
+- `python-dotenv`
+- `cryptography`
+- `pandas` for data output to `.xlsx` file (not implement yet)
