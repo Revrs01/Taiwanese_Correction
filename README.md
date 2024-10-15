@@ -1,6 +1,7 @@
 # Taiwanese Correction Main Backend Ver 2.0
 
-#### Current running on server `140.116.245.155` inside Docker container
+#### Current running on server `140.116.245.155` inside Docker container, you can find the file at `/home/p76121479/Linux_DATA/KuangFu/Taibun/main_backend`
+
 ## Features
 
 - **Cross-Origin Resource Sharing (CORS):** The app allows cross-origin connections.
@@ -17,6 +18,8 @@
 - **shared_sql_connection.py**: Provides a shared mysql cursor to interact with the SQL database.
 - **.env**: stores mysql connection config for PyMySQL
 - **.secret**: stores MySQL user password and root password
+- **../mysql_data/**: volume that mysql docker mounts, you should backup data and remove this directory first if you want to rebuild the image & container
+- **../Taibun_correction_web_db_backups/**: directory that stores 1 .sql file for mysql container startup initialization
 
 ## Installation (Docker, Preferred)
 
@@ -29,8 +32,15 @@ We use Docker to containerize our app, to run the container, follow these steps:
     ```
 2. **Remove `../mysql` directory**:
     Container will mount 2 directory when starting, `../mysql` & `../Taibun_correction_web_db_backups`, you should backup `../mysql` and remove it first.
+    ```
+   docker exec -it <container-id> bash
+   ```
+   Backup MySQL Database
+   ```
+   mysqldump -u root -p <Database-name> -r <filename>.sql
+   ```
 3. **Put 1 `.sql` backup file into `../Taibun_correction_web_db_backups`**: mysql container will initialize by reading this directory, it'll import database into mysql
-4. **Create a `.secret` directory inside the project directory**: you should create this directory first, and create 2 file inside it, `mysql_root_password.txt` & `mysql_user_password.txt`, enter password you preferred, it's recommend that they use different password.
+4. **Create a `.secret` directory inside the project directory**: you should create this directory first, and create 2 file inside it, `mysql_root_password.txt` & `mysql_user_password.txt`, enter password you preferred, it's recommended that you use different password.
 5. **Create a `.env` file**: change `.env_example` to `.env`, and insert required arguments.
 6. **Start Container**:
     ```bash
